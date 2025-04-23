@@ -24,9 +24,11 @@ class ProxyGroup:
     Storage class for ProxyGroups.
 
     Contains a list of one or more Proxies (Characters) in no particular order.
+
+    Note, that all ProxyGroup objects should be treated as read-only, with changes being made directly to the DB.
     """
     @enforce_annotations
-    def __init__(self, name: str, characters: list[Character]):
+    def __init__(self, name: str, tid: str | None, characters: list[Character]):
         """
         Initializes the ProxyGroup.
 
@@ -37,6 +39,7 @@ class ProxyGroup:
         """
         self.__characters = characters
         self.__name = name
+        self.__tid = tid
 
     @property
     def name(self):
@@ -64,7 +67,9 @@ class ProxyGroup:
         raise ValueError(f"No such character '{name}'.")
 
     def __repr__(self):
-        return f"ProxyGroup(\"{self.__name}\", {self.__characters})"
+        return (f"ProxyGroup(\"{self.__name}\", " +
+                ("None" if self.__tid is None else f"\"{self.__tid}\"")
+                + f", {self.__characters})")
 
     def __iter__(self):
         """
@@ -141,7 +146,7 @@ class Data:
                     name TEXT NOT NULL,
                     prefix TEXT NOT NULL,
                     avatar TEXT,
-                    FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid)
+                    FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid) ON DELETE SET NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid)
                 )
                 """)
@@ -179,7 +184,7 @@ class Data:
                                             (group["tid"],)).fetchall()
                 characters = [Character(_["name"], _["prefix"], _["avatar"]) for _ in characters]  # reconstruction
 
-                final.append(ProxyGroup(group["name"], characters))
+                final.append(ProxyGroup(group["name"], group["tid"], characters))
 
             # add all characters without a group into a new "Uncategorized" ProxyGroup
             ungrouped = cursor.execute("SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
@@ -187,6 +192,7 @@ class Data:
             final.append(
                 ProxyGroup(
                     "Uncategorized",
+                    None,
                     [Character(_["name"], _["prefix"], _["avatar"]) for _ in ungrouped]
                 )
             )
@@ -204,6 +210,141 @@ class Data:
                 cursor.execute("INSERT INTO users (tid, did) VALUES (?, ?)", (user_tid, "619620270776254474"))
             except sqlite3.IntegrityError as e:
                 raise ValueError(f"User of UUID '{uid}' already exists in database!") from e
+
+    @enforce_annotations
+    def get_proxygroup(self, user: User, name: str) -> ProxyGroup:
+        """
+        Find and reconstruct a User's ProxyGroup by its name.
+
+        :param user: The user to search for.
+        :type user: User
+        :param name: The name of the ProxyGroup to reconstruct.
+        :type name: str
+        :return: The reconstructed ProxyGroup.
+        :rtype: ProxyGroup
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                group = cursor.execute(
+                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
+                    (user["tid"], name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such ProxyGroup of name '{name}'.") from e
+
+            characters = cursor.execute(
+                "SELECT * FROM characters WHERE proxygroup_tid=?",
+                (group["tid"],)
+            ).fetchall()
+
+            return ProxyGroup(
+                name,
+                group["tid"],
+                [Character(_["name"], _["prefix"], _["avatar"]) for _ in characters]
+            )
+
+            # print(user)
+            # print(group)
+            # print(characters)
+
+    @enforce_annotations
+    def create_proxygroup(self, user: User, name: str) -> ProxyGroup:
+        """
+        Create a new ProxyGroup under a specific User, then return it.
+
+        Characters must be added to this group later.
+
+        :param user: The User to create the ProxyGroup for.
+        :type user: User
+        :param name: The name of the new ProxyGroup.
+        :type name: str
+        :return: The created ProxyGroup (read-only).
+        :rtype: ProxyGroup
+        """
+        if name in [_.name for _ in user.proxy_groups]:
+            raise ValueError(f"Duplicate entry ('{name}') for user of UUID '{user.uid}'.")
+
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            proxygroup_tid = str(uuid.uuid4())  # Generate a UUID for the proxy group
+            cursor.execute("INSERT INTO proxy_groups (tid, user_tid, name) VALUES (?, ?, ?)",
+                           (proxygroup_tid, user.tid, name))
+
+        return ProxyGroup(name, proxygroup_tid, [])
+
+    @enforce_annotations
+    def delete_proxygroup(self, user: User, name: str) -> None:
+        """
+        Delete a User's ProxyGroup by its name.
+
+        Automatically unassigns any user within the group to Uncategorized.
+
+        :param user: The User to search for.
+        :type user: User
+        :param name: The name of the ProxyGroup to delete.
+        :type name: str
+        :return:
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            conn.execute("PRAGMA foreign_keys = ON") # disabled by default, so re-enable it for auto nullification
+
+            try:
+                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                group = cursor.execute(
+                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
+                    (user["tid"], name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such ProxyGroup of name '{name}'.") from e
+
+            cursor.execute("DELETE FROM proxy_groups WHERE tid=?", (group["tid"],))
+
+    @enforce_annotations
+    def get_uncategorized(self, user: User) -> ProxyGroup:
+        """
+        Find and reconstruct a User's uncategorized characters (ones that do not belong to a ProxyGroup).
+
+        Creates a pseudo-ProxyGroup to contain the characters under the name "Uncategorized".
+
+        :param user: The User to search for.
+        :type user: User
+        :return: A ProxyGroup containing all Uncategorized characters.
+        :rtype: ProxyGroup
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            characters = cursor.execute(
+                "SELECT * FROM characters WHERE proxygroup_tid IS NULL"
+            ).fetchall()
+
+            return ProxyGroup(
+                "Uncategorized",
+                None,
+                [Character(_["name"], _["prefix"], _["avatar"]) for _ in characters]
+            )
 
     def get_character(self):
         ...
