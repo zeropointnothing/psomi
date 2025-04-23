@@ -232,6 +232,10 @@ class Data:
         """
         Find and reconstruct a User's ProxyGroup by its name.
 
+        All ProxyGroup related methods will inherently trust the underlying database over objects supplied
+        to them by arguments, so it is strongly recommended all ProxyGroup actions start here, where the data
+        will be most accurate.
+
         :param user: The user to search for.
         :type user: User
         :param name: The name of the ProxyGroup to reconstruct.
@@ -334,7 +338,7 @@ class Data:
         return ProxyGroup(name, proxygroup_tid, [])
 
     @enforce_annotations
-    def delete_proxygroup(self, user: User, name: str) -> None:
+    def delete_proxygroup(self, user: User, proxy_group: ProxyGroup) -> None:
         """
         Delete a User's ProxyGroup by its name.
 
@@ -342,8 +346,8 @@ class Data:
 
         :param user: The User to search for.
         :type user: User
-        :param name: The name of the ProxyGroup to delete.
-        :type name: str
+        :param proxy_group: The ProxyGroup to delete.
+        :type proxy_group: ProxyGroup
         :return:
         """
         with sqlite3.connect(self.__data_path) as conn:
@@ -359,10 +363,10 @@ class Data:
             try:
                 group = cursor.execute(
                     "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (user["tid"], name)
+                    (user["tid"], proxy_group.name)
                 ).fetchall()[0]
             except IndexError as e:
-                raise ValueError(f"No such ProxyGroup of name '{name}'.") from e
+                raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
 
             cursor.execute("DELETE FROM proxy_groups WHERE tid=?", (group["tid"],))
 
