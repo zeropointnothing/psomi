@@ -49,6 +49,22 @@ class ProxyGroup:
         """
         return self.__name
 
+    @property
+    def tid(self):
+        """
+        :return: The ProxyGroup's TID.
+        :rtype: str
+        """
+        return self.__tid
+
+    @property
+    def characters(self):
+        """
+        :return: All Characters in this ProxyGroup.
+        :rtype: list[Character]
+        """
+        return self.__characters
+
     @enforce_annotations
     def get_character_by_name(self, name: str) -> Character:
         """
@@ -254,6 +270,41 @@ class Data:
             # print(user)
             # print(group)
             # print(characters)
+
+    @enforce_annotations
+    def rename_proxygroup(self, user: User, proxy_group: ProxyGroup, new_name: str) -> ProxyGroup:
+        """
+        Modify a User's ProxyGroup name, then return a new ProxyGroup object.
+
+        :param user: The User to search for.
+        :type user: str
+        :param proxy_group: The ProxyGroup to rename.
+        :type proxy_group: ProxyGroup
+        :param new_name: The ProxyGroup's new name.
+        :type new_name: str
+        :return: The renamed ProxyGroup.
+        :rtype: ProxyGroup
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                group = cursor.execute(
+                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
+                    (user["tid"], proxy_group.name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
+
+            cursor.execute("UPDATE proxy_groups SET name=? WHERE tid=?", (new_name,group["tid"]))
+
+        return ProxyGroup(new_name, group["tid"], proxy_group.characters)
 
     @enforce_annotations
     def create_proxygroup(self, user: User, name: str) -> ProxyGroup:
