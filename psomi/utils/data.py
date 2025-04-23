@@ -1,8 +1,9 @@
+import inspect
 import sqlite3
 import os.path
 import uuid
 from dataclasses import dataclass
-from threading import Lock
+from psomi.utils.checking import enforce_annotations
 
 
 @dataclass
@@ -24,6 +25,7 @@ class ProxyGroup:
 
     Contains a list of one or more Proxies (Characters) in no particular order.
     """
+    @enforce_annotations
     def __init__(self, name: str, characters: list[Character]):
         """
         Initializes the ProxyGroup.
@@ -44,6 +46,7 @@ class ProxyGroup:
         """
         return self.__name
 
+    @enforce_annotations
     def get_character_by_name(self, name: str) -> Character:
         """
         Get a character by their name.
@@ -81,6 +84,7 @@ class User:
     Stores various information on a specific Discord user.
     """
     uid: str
+    tid: str
     proxy_groups: list[ProxyGroup]
 
 
@@ -90,6 +94,7 @@ class Data:
 
     Allows for the storage and modification of various Proxies and ProxyGroups.
     """
+    @enforce_annotations
     def __init__(self, data_path: str):
         """
         Initializes the Database.
@@ -141,6 +146,7 @@ class Data:
                 )
                 """)
 
+    @enforce_annotations
     def get_user(self, uid: str) -> User:
         """
         Reconstructs a User's entire profile from the DB.
@@ -153,10 +159,7 @@ class Data:
         :rtype: User
 
         :raises IndexError: if the UUID is not valid or no such user exists.
-        :raises TypeError: if the `uid` variable is not of type `str`.
         """
-        if not isinstance(uid, str):
-            raise TypeError(f"Argument 'uid' must be of type 'str', not '{uid.__class__.__name__}'.")
 
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -188,7 +191,19 @@ class Data:
                 )
             )
 
-            return User(user["did"], final)
+            return User(user["did"], user["tid"], final)
+
+    @enforce_annotations
+    def add_user(self, uid: str):
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                user_tid = str(uuid.uuid4())  # Generate a new UUID for the user
+                cursor.execute("INSERT INTO users (tid, did) VALUES (?, ?)", (user_tid, "619620270776254474"))
+            except sqlite3.IntegrityError as e:
+                raise ValueError(f"User of UUID '{uid}' already exists in database!") from e
 
     def get_character(self):
         ...
