@@ -16,6 +16,7 @@ class Character:
     name: str
     prefix: str
     # Optional
+    proxygroup_name: str | None = None
     avatar: str | None = None
 
 
@@ -159,8 +160,8 @@ class Data:
                     tid TEXT PRIMARY KEY,
                     proxygroup_tid TEXT DEFAULT NULL,
                     user_tid TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    prefix TEXT NOT NULL,
+                    name TEXT UNIQUE NOT NULL,
+                    prefix TEXT UNIQUE NOT NULL,
                     avatar TEXT,
                     FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid) ON DELETE SET NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid)
@@ -198,9 +199,9 @@ class Data:
                 # all characters have a link to their proxygroups, so we can filter them by the TID
                 characters = cursor.execute("SELECT * FROM characters WHERE proxygroup_tid=?",
                                             (group["tid"],)).fetchall()
-                characters = [Character(_["name"], _["prefix"], _["avatar"]) for _ in characters]  # reconstruction
+                characters = [Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in characters]  # reconstruction
 
-                final.append(ProxyGroup(group["name"], group["tid"], characters))
+                final.append(ProxyGroup(group["name"], group["name"], characters))
 
             # add all characters without a group into a new "Uncategorized" ProxyGroup
             ungrouped = cursor.execute("SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
@@ -209,7 +210,7 @@ class Data:
                 ProxyGroup(
                     "Uncategorized",
                     None,
-                    [Character(_["name"], _["prefix"], _["avatar"]) for _ in ungrouped]
+                    [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in ungrouped]
                 )
             )
 
@@ -268,7 +269,7 @@ class Data:
             return ProxyGroup(
                 name,
                 group["tid"],
-                [Character(_["name"], _["prefix"], _["avatar"]) for _ in characters]
+                [Character(_["name"], _["prefix"], group["name"], _["avatar"]) for _ in characters]
             )
 
             # print(user)
@@ -398,17 +399,58 @@ class Data:
             return ProxyGroup(
                 "Uncategorized",
                 None,
-                [Character(_["name"], _["prefix"], _["avatar"]) for _ in characters]
+                [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in characters]
             )
 
-    def get_character(self):
+    def get_character(self, user: User, name: str) -> Character:
+        """
+        Find and reconstruct a User's Character by their name.
+
+        :param user: The User to search for.
+        :param name: The Character's name.
+        :return: The reconstructed Character.
+        :rtype: Character
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                character = cursor.execute(
+                    "SELECT * FROM characters WHERE name=?",
+                    (name,)
+                ).fetchall()[0]
+                character_group = cursor.execute(
+                    "SELECT name FROM proxy_groups WHERE tid=?",
+                    (character["proxygroup_tid"],)
+                ).fetchone()[0]
+
+            except IndexError as e:
+                raise ValueError(f"No such character with name '{name}'.") from e
+
+            return Character(
+                character["name"],
+                character["prefix"],
+                character_group,
+                character["avatar"]
+            )
+
+    def create_character(self):
         ...
 
-    def add_character(self):
+    def delete_character(self):
+        ...
+
+    def group_character(self):
+        ...
+
+    def ungroup_character(self):
         ...
 
     def update_character(self):
-        ...
-
-    def remove_character(self):
         ...
