@@ -5,7 +5,6 @@ import uuid
 from dataclasses import dataclass
 from psomi.utils.checking import enforce_annotations
 
-
 @dataclass
 class Character:
     """
@@ -191,21 +190,29 @@ class Data:
             # linked to the user via its TID.
             final = []
             try:
-                user = cursor.execute("SELECT * FROM users WHERE did=?", (uid,)).fetchall()[0]
+                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (uid,)).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such user of UUID '{uid}'!") from e
-            proxygroups = cursor.execute("SELECT * FROM proxy_groups WHERE user_tid=?", (user["tid"],)).fetchall()
+            proxygroups = cursor.execute(
+                "SELECT * FROM proxy_groups WHERE user_tid=?",
+                (db_user["tid"],)
+            ).fetchall()
             for group in proxygroups:
                 # all characters have a link to their proxygroups, so we can filter them by the TID
                 characters = cursor.execute("SELECT * FROM characters WHERE proxygroup_tid=?",
                                             (group["tid"],)).fetchall()
-                characters = [Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in characters]  # reconstruction
+                characters = [
+                    Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in characters
+                ]  # reconstruction
 
                 final.append(ProxyGroup(group["name"], group["name"], characters))
 
             # add all characters without a group into a new "Uncategorized" ProxyGroup
-            ungrouped = cursor.execute("SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
-                                       (user["tid"],)).fetchall()
+            ungrouped = cursor.execute(
+                "SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
+                (db_user["tid"],)
+            ).fetchall()
+
             final.append(
                 ProxyGroup(
                     "Uncategorized",
@@ -214,7 +221,7 @@ class Data:
                 )
             )
 
-            return User(user["did"], user["tid"], final)
+            return User(db_user["did"], db_user["tid"], final)
 
     @enforce_annotations
     def add_user(self, uid: str):
@@ -224,7 +231,10 @@ class Data:
 
             try:
                 user_tid = str(uuid.uuid4())  # Generate a new UUID for the user
-                cursor.execute("INSERT INTO users (tid, did) VALUES (?, ?)", (user_tid, "619620270776254474"))
+                cursor.execute(
+                    "INSERT INTO users (tid, did) VALUES (?, ?)",
+                    (user_tid, "619620270776254474")
+                )
             except sqlite3.IntegrityError as e:
                 raise ValueError(f"User of UUID '{uid}' already exists in database!") from e
 
@@ -249,14 +259,17 @@ class Data:
             cursor = conn.cursor()
 
             try:
-                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+                db_user = cursor.execute(
+                    "SELECT * FROM users WHERE did=?",
+                    (user.uid,)
+                ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such user of UUID '{user.uid}'.") from e
 
             try:
                 group = cursor.execute(
                     "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (user["tid"], name)
+                    (db_user["tid"], name)
                 ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such ProxyGroup of name '{name}'.") from e
@@ -295,19 +308,25 @@ class Data:
             cursor = conn.cursor()
 
             try:
-                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+                db_user = cursor.execute(
+                    "SELECT * FROM users WHERE did=?",
+                    (user.uid,)
+                ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such user of UUID '{user.uid}'.") from e
 
             try:
                 group = cursor.execute(
                     "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (user["tid"], proxy_group.name)
+                    (db_user["tid"], proxy_group.name)
                 ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
 
-            cursor.execute("UPDATE proxy_groups SET name=? WHERE tid=?", (new_name,group["tid"]))
+            cursor.execute(
+                "UPDATE proxy_groups SET name=? WHERE tid=?",
+                (new_name,group["tid"])
+            )
 
         return ProxyGroup(new_name, group["tid"], proxy_group.characters)
 
@@ -333,8 +352,10 @@ class Data:
             cursor = conn.cursor()
 
             proxygroup_tid = str(uuid.uuid4())  # Generate a UUID for the proxy group
-            cursor.execute("INSERT INTO proxy_groups (tid, user_tid, name) VALUES (?, ?, ?)",
-                           (proxygroup_tid, user.tid, name))
+            cursor.execute(
+                "INSERT INTO proxy_groups (tid, user_tid, name) VALUES (?, ?, ?)",
+                (proxygroup_tid, user.tid, name)
+            )
 
         return ProxyGroup(name, proxygroup_tid, [])
 
@@ -357,19 +378,25 @@ class Data:
             conn.execute("PRAGMA foreign_keys = ON") # disabled by default, so re-enable it for auto nullification
 
             try:
-                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+                db_user = cursor.execute(
+                    "SELECT * FROM users WHERE did=?",
+                    (user.uid,)
+                ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such user of UUID '{user.uid}'.") from e
 
             try:
                 group = cursor.execute(
                     "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (user["tid"], proxy_group.name)
+                    (db_user["tid"], proxy_group.name)
                 ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
 
-            cursor.execute("DELETE FROM proxy_groups WHERE tid=?", (group["tid"],))
+            cursor.execute(
+                "DELETE FROM proxy_groups WHERE tid=?",
+                (group["tid"],)
+            )
 
     @enforce_annotations
     def get_uncategorized(self, user: User) -> ProxyGroup:
@@ -388,7 +415,10 @@ class Data:
             cursor = conn.cursor()
 
             try:
-                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+                db_user = cursor.execute(
+                    "SELECT * FROM users WHERE did=?",
+                    (user.uid,)
+                ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such user of UUID '{user.uid}'.") from e
 
@@ -402,6 +432,7 @@ class Data:
                 [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in characters]
             )
 
+    @enforce_annotations
     def get_character(self, user: User, name: str) -> Character:
         """
         Find and reconstruct a User's Character by their name.
@@ -416,7 +447,10 @@ class Data:
             cursor = conn.cursor()
 
             try:
-                user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+                db_user = cursor.execute(
+                    "SELECT * FROM users WHERE did=?",
+                    (user.uid,)
+                ).fetchall()[0]
             except IndexError as e:
                 raise ValueError(f"No such user of UUID '{user.uid}'.") from e
 
