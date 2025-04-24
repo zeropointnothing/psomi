@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass
 from psomi.utils.checking import enforce_annotations
 
+#TODO: Possibly find a better solution than tossing objects around?
+
 @dataclass
 class Character:
     """
@@ -517,6 +519,7 @@ class Data:
 
         return Character(name, prefix, None, avatar)
 
+    @enforce_annotations
     def delete_character(self, user: User, character: Character):
         """
         Delete a User's Character.
@@ -549,11 +552,101 @@ class Data:
                 (db_character["tid"],)
             )
 
-    def group_character(self):
-        ...
+    @enforce_annotations
+    def group_character(self, user: User, character: Character, proxy_group: ProxyGroup) -> Character:
+        """
+        Add a User's Character into a ProxyGroup, then return the updated Character object.
 
-    def ungroup_character(self):
-        ...
+        :param user: The User to search for.
+        :type user: User
+        :param character: The Character to add to the ProxyGroup.
+        :type character: Character
+        :param proxy_group: The ProxyGroup to add them to.
+        :type proxy_group: ProxyGroup
+        :return: The updated Character.
+        :rtype: Character
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                db_character = cursor.execute(
+                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
+                    (db_user["tid"], character.name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such character with name '{character.name}'.") from e
+
+            try:
+                group = cursor.execute(
+                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
+                    (db_user["tid"], proxy_group.name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
+
+            if db_character["proxygroup_tid"] == group["tid"]:
+                raise ValueError(f"Character '{character.name}' is already present in ProxyGroup '{proxy_group.name}'")
+
+            cursor.execute(
+                "UPDATE characters SET proxygroup_tid=? WHERE tid=?",
+                (group["tid"], db_character["tid"])
+            )
+
+            return Character(
+                character.name,
+                character.prefix,
+                group["name"],
+                character.avatar
+            )
+
+
+    def ungroup_character(self, user: User, character: Character) -> Character:
+        """
+        Remove a User's Character from whatever ProxyGroup they belong to, then return it.
+
+        :param user: The User to search for.
+        :param character: The Character to remove from the ProxyGroup.
+        :return: The updated Character.
+        :rtype: Character
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                db_character = cursor.execute(
+                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
+                    (db_user["tid"], character.name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such character with name '{character.name}'.") from e
+
+            if db_character["proxygroup_tid"] is None:
+                raise ValueError(f"Character '{character.name}' does not belong to a ProxyGroup!")
+
+            cursor.execute(
+                "UPDATE characters SET proxygroup_tid=NULL WHERE tid=?",
+                (db_character["tid"],)
+            )
+
+            return Character(
+                character.name,
+                character.prefix,
+                None,
+                character.avatar
+            )
 
     def update_character(self):
         ...
