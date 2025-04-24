@@ -233,7 +233,7 @@ class Data:
                 user_tid = str(uuid.uuid4())  # Generate a new UUID for the user
                 cursor.execute(
                     "INSERT INTO users (tid, did) VALUES (?, ?)",
-                    (user_tid, "619620270776254474")
+                    (user_tid, uid)
                 )
             except sqlite3.IntegrityError as e:
                 raise ValueError(f"User of UUID '{uid}' already exists in database!") from e
@@ -423,7 +423,8 @@ class Data:
                 raise ValueError(f"No such user of UUID '{user.uid}'.") from e
 
             characters = cursor.execute(
-                "SELECT * FROM characters WHERE proxygroup_tid IS NULL"
+                "SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
+                (db_user["tid"],)
             ).fetchall()
 
             return ProxyGroup(
@@ -456,8 +457,8 @@ class Data:
 
             try:
                 character = cursor.execute(
-                    "SELECT * FROM characters WHERE name=?",
-                    (name,)
+                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
+                    (db_user["tid"], name)
                 ).fetchall()[0]
                 character_group = cursor.execute(
                     "SELECT name FROM proxy_groups WHERE tid=?",
