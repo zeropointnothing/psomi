@@ -159,11 +159,12 @@ class Data:
                     tid TEXT PRIMARY KEY,
                     proxygroup_tid TEXT DEFAULT NULL,
                     user_tid TEXT NOT NULL,
-                    name TEXT UNIQUE NOT NULL,
-                    prefix TEXT UNIQUE NOT NULL,
+                    name TEXT NOT NULL,
+                    prefix TEXT NOT NULL,
                     avatar TEXT,
                     FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid) ON DELETE SET NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid)
+                    UNIQUE (user_tid, name, prefix)
                 )
                 """)
 
@@ -464,9 +465,10 @@ class Data:
                     "SELECT name FROM proxy_groups WHERE tid=?",
                     (character["proxygroup_tid"],)
                 ).fetchone()[0]
-
             except IndexError as e:
                 raise ValueError(f"No such character with name '{name}'.") from e
+            except TypeError: # fetchone returns None instead of a single item list if it can't find something.
+                character_group = None
 
             return Character(
                 character["name"],
@@ -475,11 +477,77 @@ class Data:
                 character["avatar"]
             )
 
-    def create_character(self):
-        ...
+    @enforce_annotations
+    def create_character(self, user: User, name: str, prefix: str, avatar: str | None) -> Character:
+        """
+        Create a new Character under a specific user, then return it.
 
-    def delete_character(self):
-        ...
+        Note, that all new Characters are Uncategorized.
+
+        :param user: The User to search for.
+        :type user: User
+        :param name: The Character's name.
+        :type name: str
+        :param prefix: The Character's prefix.
+        :type prefix: str
+        :param avatar: The Character's avatar URL, if any.
+        :type avatar: str | None
+        :return: The created Character.
+        :rtype: Character
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            # note: characters are uncategorized by default
+            try:
+                character_tid = str(uuid.uuid4())
+                cursor.execute(
+                    "INSERT INTO characters (tid, proxygroup_tid, user_tid, name, prefix, avatar) VALUES "
+                    "(?, ?, ?, ?, ?, ?)",
+                    (character_tid, None, db_user["tid"], name, prefix, avatar)
+                )
+            except sqlite3.IntegrityError as e:
+                raise ValueError(f"One or more values failed database integrity checks!")
+
+        return Character(name, prefix, None, avatar)
+
+    def delete_character(self, user: User, character: Character):
+        """
+        Delete a User's Character.
+
+        :param user: The User to search for.
+        :type user: User
+        :param character: The Character to delete.
+        :type character: Character
+        :return:
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            try:
+                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+
+            try:
+                db_character = cursor.execute(
+                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
+                    (db_user["tid"], character.name)
+                ).fetchall()[0]
+            except IndexError as e:
+                raise ValueError(f"No such character with name '{character.name}'.") from e
+
+            cursor.execute(
+                "DELETE FROM characters WHERE tid=?",
+                (db_character["tid"],)
+            )
 
     def group_character(self):
         ...
