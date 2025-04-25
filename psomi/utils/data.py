@@ -130,6 +130,34 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str):
     except IndexError as e:
         raise ValueError(f"No such ProxyGroup of name '{group_name}'.") from e
 
+def sort_by_page(groups: list, page_num: int, page_size: int) -> dict:
+    """
+    Sort a list of lists (groups) by pages, ensuring only one group is shown at a time.
+
+    :param groups: The groups to sort.
+    :type groups: list
+    :param page_num: What page to fetch.
+    :type page_num: int
+    :param page_size: How large the page should be.
+    :type page_size: int
+    :return: The sorted page.
+    :rtype: dict
+    """
+    for i, group in enumerate(groups):
+        num_pages_in_group = -(-len(group) // page_size)
+
+        if page_num <= num_pages_in_group:
+            start_idx = (page_num - 1) * page_size
+            end_idx = start_idx + page_size
+            return {
+                "group_num": i+1,
+                "page": group[start_idx:end_idx]
+            }
+
+        page_num -= num_pages_in_group  # Move to the next group
+
+    return {"group_num": 0, "page": []}  # Return blank dict indicating out of bounds
+
 def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str):
     try:
         return cursor.execute(

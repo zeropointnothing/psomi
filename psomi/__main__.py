@@ -6,7 +6,7 @@ from psomi.utils.bot import PsomiBot
 
 intents = discord.Intents.default() #Defining intents
 intents.message_content = True # Adding the message_content intent so that the bot can read user messages
-bot = PsomiBot(command_prefix="p!", db_path="database.db", intents=intents, help_command=commands.MinimalHelpCommand())
+bot = PsomiBot(command_prefix="p!", db_path="database.db", intents=intents)
 
 if __name__ == "__main__":
     print(command_groups)
