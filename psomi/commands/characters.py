@@ -28,7 +28,7 @@ class Characters(commands.Cog):
             embed.add_field(
                 name=character.name,
                 value=f"Prefix: `{character.prefix}`\n"
-                      + f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None"
+                      + (f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None")
             )
 
         if characters["group_num"] < len(user.proxy_groups):
