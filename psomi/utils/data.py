@@ -253,7 +253,7 @@ class Data:
             return User(db_user["did"], db_user["tid"], final)
 
     @enforce_annotations
-    def add_user(self, uid: str):
+    def add_user(self, uid: str) -> User:
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -266,6 +266,8 @@ class Data:
                 )
             except sqlite3.IntegrityError as e:
                 raise ValueError(f"User of UUID '{uid}' already exists in database!") from e
+
+            return User(uid, user_tid, [])
 
     @enforce_annotations
     def get_proxygroup(self, user: User, name: str) -> ProxyGroup:
