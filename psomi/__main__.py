@@ -2,11 +2,11 @@ import json
 import discord
 import discord.ext.commands as commands
 from psomi.commands import command_groups
-from psomi.utils.data import Data
+from psomi.utils.bot import PsomiBot
 
 intents = discord.Intents.default() #Defining intents
 intents.message_content = True # Adding the message_content intent so that the bot can read user messages
-bot = commands.Bot(command_prefix="p!", intents=intents)
+bot = PsomiBot(command_prefix="p!", db_path="database.db", intents=intents, help_command=commands.MinimalHelpCommand())
 
 if __name__ == "__main__":
     print(command_groups)
