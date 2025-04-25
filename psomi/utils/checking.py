@@ -1,6 +1,7 @@
 import types as typ
 from inspect import getfullargspec
-from typing import get_args
+from typing import get_args, Any
+
 
 def enforce_annotations(func):
     """
@@ -17,9 +18,18 @@ def enforce_annotations(func):
         except KeyError:
             pass
         types = list(annotations.values())
+        keys = list(annotations.keys())
 
-        for i, arg in enumerate(args[1:]) if "." in func.__qualname__ else enumerate(args):
+        # since Any types won't be added, we need to re-add them
+        for i, arg in enumerate(getfullargspec(func).args):
+            if arg not in annotations:
+                types.insert(i, Any)
+                keys.insert(i, arg)
+
+        for i, arg in enumerate(args):
             if arg == "return": # we don't need to check the return value or self
+                continue
+            elif types[i] is Any:
                 continue
 
             # check for UnionTypes
@@ -30,7 +40,7 @@ def enforce_annotations(func):
 
             # expected = types[i].__name__
             got = arg.__class__.__name__
-            arg_for = list(annotations.keys())[i]
+            arg_for = keys[i]
 
             if got not in expected:
                 raise TypeError(f"Function '{func.__name__}'"
