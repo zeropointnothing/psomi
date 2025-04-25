@@ -111,6 +111,35 @@ class User:
     proxy_groups: list[ProxyGroup]
 
 
+def db_get_user_row(cursor: sqlite3.Cursor, did: str):
+    try:
+        return cursor.execute(
+            "SELECT * FROM users WHERE did=?",
+            (did,)
+        ).fetchall()[0]
+    except IndexError as e:
+        raise ValueError(f"No such user of UUID '{did}'.") from e
+
+
+def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str):
+    try:
+        return cursor.execute(
+            "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
+            (user_tid, group_name)
+        ).fetchall()[0]
+    except IndexError as e:
+        raise ValueError(f"No such ProxyGroup of name '{group_name}'.") from e
+
+def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str):
+    try:
+        return cursor.execute(
+            "SELECT * FROM characters WHERE user_tid=? AND name=?",
+            (user_tid, character_name)
+        ).fetchall()[0]
+    except IndexError as e:
+        raise ValueError(f"No such character with name '{character_name}'.") from e
+
+
 class Data:
     """
     Main Database class.
@@ -192,26 +221,23 @@ class Data:
             # find the user by their Discord UUID, then locate all characters and ProxyGroups that are
             # linked to the user via its TID.
             final = []
-            try:
-                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (uid,)).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{uid}'!") from e
-            proxygroups = cursor.execute(
+            db_user = db_get_user_row(cursor, uid)
+            db_proxygroups = cursor.execute(
                 "SELECT * FROM proxy_groups WHERE user_tid=?",
                 (db_user["tid"],)
             ).fetchall()
-            for group in proxygroups:
+            for group in db_proxygroups:
                 # all characters have a link to their proxygroups, so we can filter them by the TID
-                characters = cursor.execute("SELECT * FROM characters WHERE proxygroup_tid=?",
+                db_characters = cursor.execute("SELECT * FROM characters WHERE proxygroup_tid=?",
                                             (group["tid"],)).fetchall()
-                characters = [
-                    Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in characters
+                db_characters = [
+                    Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in db_characters
                 ]  # reconstruction
 
-                final.append(ProxyGroup(group["name"], group["name"], characters))
+                final.append(ProxyGroup(group["name"], group["name"], db_characters))
 
             # add all characters without a group into a new "Uncategorized" ProxyGroup
-            ungrouped = cursor.execute(
+            db_ungrouped = cursor.execute(
                 "SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
                 (db_user["tid"],)
             ).fetchall()
@@ -220,7 +246,7 @@ class Data:
                 ProxyGroup(
                     "Uncategorized",
                     None,
-                    [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in ungrouped]
+                    [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in db_ungrouped]
                 )
             )
 
@@ -257,35 +283,22 @@ class Data:
         :return: The reconstructed ProxyGroup.
         :rtype: ProxyGroup
         """
+
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            db_user = db_get_user_row(cursor, user.uid)
+            db_group = db_get_group_row(cursor, db_user["tid"], name)
 
-            try:
-                db_user = cursor.execute(
-                    "SELECT * FROM users WHERE did=?",
-                    (user.uid,)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            try:
-                group = cursor.execute(
-                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (db_user["tid"], name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such ProxyGroup of name '{name}'.") from e
-
-            characters = cursor.execute(
+            db_characters = cursor.execute(
                 "SELECT * FROM characters WHERE proxygroup_tid=?",
-                (group["tid"],)
+                (db_group["tid"],)
             ).fetchall()
 
             return ProxyGroup(
                 name,
-                group["tid"],
-                [Character(_["name"], _["prefix"], group["name"], _["avatar"]) for _ in characters]
+                db_group["tid"],
+                [Character(_["name"], _["prefix"], db_group["name"], _["avatar"]) for _ in db_characters]
             )
 
             # print(user)
@@ -306,32 +319,19 @@ class Data:
         :return: The renamed ProxyGroup.
         :rtype: ProxyGroup
         """
+
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-
-            try:
-                db_user = cursor.execute(
-                    "SELECT * FROM users WHERE did=?",
-                    (user.uid,)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            try:
-                group = cursor.execute(
-                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (db_user["tid"], proxy_group.name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
+            db_user = db_get_user_row(cursor, user.uid)
+            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
 
             cursor.execute(
                 "UPDATE proxy_groups SET name=? WHERE tid=?",
-                (new_name,group["tid"])
+                (new_name,db_group["tid"])
             )
 
-        return ProxyGroup(new_name, group["tid"], proxy_group.characters)
+        return ProxyGroup(new_name, db_group["tid"], proxy_group.characters)
 
     @enforce_annotations
     def create_proxygroup(self, user: User, name: str) -> ProxyGroup:
@@ -375,30 +375,17 @@ class Data:
         :type proxy_group: ProxyGroup
         :return:
         """
+
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             conn.execute("PRAGMA foreign_keys = ON") # disabled by default, so re-enable it for auto nullification
-
-            try:
-                db_user = cursor.execute(
-                    "SELECT * FROM users WHERE did=?",
-                    (user.uid,)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            try:
-                group = cursor.execute(
-                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (db_user["tid"], proxy_group.name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
+            db_user = db_get_user_row(cursor, user.uid)
+            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
 
             cursor.execute(
                 "DELETE FROM proxy_groups WHERE tid=?",
-                (group["tid"],)
+                (db_group["tid"],)
             )
 
     @enforce_annotations
@@ -413,19 +400,13 @@ class Data:
         :return: A ProxyGroup containing all Uncategorized characters.
         :rtype: ProxyGroup
         """
+
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            db_user = db_get_user_row(cursor, user.uid)
 
-            try:
-                db_user = cursor.execute(
-                    "SELECT * FROM users WHERE did=?",
-                    (user.uid,)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            characters = cursor.execute(
+            db_characters = cursor.execute(
                 "SELECT * FROM characters WHERE user_tid=? AND proxygroup_tid IS NULL",
                 (db_user["tid"],)
             ).fetchall()
@@ -433,7 +414,7 @@ class Data:
             return ProxyGroup(
                 "Uncategorized",
                 None,
-                [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in characters]
+                [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in db_characters]
             )
 
     @enforce_annotations
@@ -446,37 +427,26 @@ class Data:
         :return: The reconstructed Character.
         :rtype: Character
         """
+
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            db_user = db_get_user_row(cursor, user.uid)
 
             try:
-                db_user = cursor.execute(
-                    "SELECT * FROM users WHERE did=?",
-                    (user.uid,)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            try:
-                character = cursor.execute(
-                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
-                    (db_user["tid"], name)
-                ).fetchall()[0]
+                db_character = db_get_character(cursor, db_user["tid"], name)
                 character_group = cursor.execute(
                     "SELECT name FROM proxy_groups WHERE tid=?",
-                    (character["proxygroup_tid"],)
+                    (db_character["proxygroup_tid"],)
                 ).fetchone()[0]
-            except IndexError as e:
-                raise ValueError(f"No such character with name '{name}'.") from e
             except TypeError: # fetchone returns None instead of a single item list if it can't find something.
                 character_group = None
 
             return Character(
-                character["name"],
-                character["prefix"],
+                db_character["name"],
+                db_character["prefix"],
                 character_group,
-                character["avatar"]
+                db_character["avatar"]
             )
 
     @enforce_annotations
@@ -501,11 +471,7 @@ class Data:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            try:
-                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
+            db_user = db_get_user_row(cursor, user.uid)
             # note: characters are uncategorized by default
             try:
                 character_tid = str(uuid.uuid4())
@@ -534,19 +500,8 @@ class Data:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            try:
-                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            try:
-                db_character = cursor.execute(
-                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
-                    (db_user["tid"], character.name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such character with name '{character.name}'.") from e
-
+            db_user = db_get_user_row(cursor, user.uid)
+            db_character = db_get_character(cursor, db_user["tid"], character.name)
             cursor.execute(
                 "DELETE FROM characters WHERE tid=?",
                 (db_character["tid"],)
@@ -570,39 +525,22 @@ class Data:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            try:
-                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
+            db_user = db_get_user_row(cursor, user.uid)
+            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
+            db_character = db_get_character(cursor, db_user["tid"], character.name)
 
-            try:
-                db_character = cursor.execute(
-                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
-                    (db_user["tid"], character.name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such character with name '{character.name}'.") from e
-
-            try:
-                group = cursor.execute(
-                    "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-                    (db_user["tid"], proxy_group.name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such ProxyGroup of name '{proxy_group.name}'.") from e
-
-            if db_character["proxygroup_tid"] == group["tid"]:
+            if db_character["proxygroup_tid"] == db_group["tid"]:
                 raise ValueError(f"Character '{character.name}' is already present in ProxyGroup '{proxy_group.name}'")
 
             cursor.execute(
                 "UPDATE characters SET proxygroup_tid=? WHERE tid=?",
-                (group["tid"], db_character["tid"])
+                (db_group["tid"], db_character["tid"])
             )
 
             return Character(
                 character.name,
                 character.prefix,
-                group["name"],
+                db_group["name"],
                 character.avatar
             )
 
@@ -620,18 +558,8 @@ class Data:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            try:
-                db_user = cursor.execute("SELECT * FROM users WHERE did=?", (user.uid,)).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such user of UUID '{user.uid}'.") from e
-
-            try:
-                db_character = cursor.execute(
-                    "SELECT * FROM characters WHERE user_tid=? AND name=?",
-                    (db_user["tid"], character.name)
-                ).fetchall()[0]
-            except IndexError as e:
-                raise ValueError(f"No such character with name '{character.name}'.") from e
+            db_user = db_get_user_row(cursor, user.uid)
+            db_character = db_get_character(cursor, db_user["tid"], character.name)
 
             if db_character["proxygroup_tid"] is None:
                 raise ValueError(f"Character '{character.name}' does not belong to a ProxyGroup!")
