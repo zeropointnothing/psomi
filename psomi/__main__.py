@@ -8,6 +8,15 @@ intents = discord.Intents.default() #Defining intents
 intents.message_content = True # Adding the message_content intent so that the bot can read user messages
 bot = PsomiBot(command_prefix="p!", db_path="database.db", intents=intents)
 
+@bot.event
+async def on_ready():
+    await bot.change_presence(
+        activity=discord.Activity(
+            type=discord.ActivityType.watching,
+            name=f"for new horizons... 🚧",
+        )
+    )
+
 if __name__ == "__main__":
     print(command_groups)
     for group in command_groups:
