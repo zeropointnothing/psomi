@@ -63,7 +63,7 @@ class Characters(commands.Cog):
 
         self.bot.database.delete_character(user, character)
 
-        await ctx.reply(f"Successfully deleted {character.name}!")
+        await ctx.reply(f"Successfully deleted '{character.name}'!")
 
     @commands.command(name="list", description="List all of your registered Characters.")
     async def list_command(self, ctx: commands.Context, page: int = 1):
