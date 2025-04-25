@@ -576,5 +576,56 @@ class Data:
                 character.avatar
             )
 
-    def update_character(self):
-        ...
+    @enforce_annotations
+    def update_character(self, user: User, character: Character, key: str, value) -> Character:
+        """
+        Update an attribute of a User's Character, then return it.
+
+        Certain keys will be rejected to preserve DB integrity.
+
+        :param user: The User to search.
+        :type user: User
+        :param character: The Character to update.
+        :type character: Character
+        :param key: The key to update.
+        :type key: str
+        :param value: The value to update it with.
+        :return: The updated Character.
+        """
+
+        # a list of values that should always be rejected.
+        banned = [
+            "tid", # should never change
+            "proxygroup_tid", # should be changed via group_character, not here
+            "user_tid", # likely shouldn't change
+        ]
+
+        if key in banned:
+            raise ValueError(f"Unable to update Character '{character.name}' with banned key '{key}'.")
+
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            db_user = db_get_user_row(cursor, user.uid)
+            db_character = db_get_character(cursor, db_user["tid"], character.name)
+            try:
+                cursor.execute(
+                    f"UPDATE characters SET {key}=? WHERE tid=?",
+                    (value, db_character["tid"])
+                )
+            except sqlite3.OperationalError:
+                raise ValueError("Invalid key name.")
+
+            # we shouldn't trust the supplied objects over the DB, so fetch again.
+            # must be done by TID, since there's a chance the name changed.
+            db_character = cursor.execute(
+                "SELECT * FROM characters WHERE tid=?",
+                (db_character["tid"],)
+            ).fetchall()[0]
+            return Character(
+                db_character["name"],
+                db_character["prefix"],
+                character.proxygroup_name, # except for the name, since that can't be changed here
+                db_character["avatar"]
+            )
