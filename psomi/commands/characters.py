@@ -36,7 +36,7 @@ class Characters(commands.Cog):
 
         try:
             user = self.bot.database.get_user(str(ctx.message.author.id))
-        except IndexError: # we should add the user if they are not present
+        except ValueError: # we should add the user if they are not present
             user = self.bot.database.add_user(str(ctx.message.author.id))
         try:
             self.bot.database.create_character(user, name, prefix, avatar)

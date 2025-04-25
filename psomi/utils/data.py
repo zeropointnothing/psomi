@@ -240,7 +240,7 @@ class Data:
         :returns: The fully reconstructed User class.
         :rtype: User
 
-        :raises IndexError: if the UUID is not valid or no such user exists.
+        :raises ValueError: if the UUID is not valid or no such user exists.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
