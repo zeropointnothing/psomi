@@ -1,4 +1,3 @@
-import inspect
 import sqlite3
 import os.path
 import uuid
@@ -511,7 +510,7 @@ class Data:
                     "(?, ?, ?, ?, ?, ?)",
                     (character_tid, None, db_user["tid"], name, prefix, avatar)
                 )
-            except sqlite3.IntegrityError as e:
+            except sqlite3.IntegrityError:
                 raise ValueError(f"One or more values failed database integrity checks!")
 
         return Character(name, prefix, None, avatar)

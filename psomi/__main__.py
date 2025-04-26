@@ -1,6 +1,5 @@
 import json
 import discord
-import discord.ext.commands as commands
 import aiohttp, asyncio
 from psomi.commands import command_groups
 from psomi.utils.bot import PsomiBot
@@ -20,7 +19,7 @@ async def on_ready():
     )
 
 @bot.event
-async def on_message(message: discord.message.Message):
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
     
