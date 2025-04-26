@@ -15,7 +15,7 @@ PSOMI is being rewritten from the ground up, making v2 better in every way! PSOM
 
 PSOMI.v2 will always keep its code open, making it easier to find and squash bugs, add features, and host your own instance!
 
-Not only that, but PSOMI.v2's code has been designed with **simplicity** and **expandability** in mind. If you don't like something, change it, then run your own instance!
+Not only that, but PSOMI.v2's code has been designed with **simplicity** and **expandability** in mind. If you don't like something, change it! With a class-based approach, and plenty of documentation built into the codebase, PSOMI.v2 will do its best to help!
 
 ### Prefences Galore!
 
