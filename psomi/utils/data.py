@@ -255,6 +255,7 @@ class Data:
                     user_tid TEXT NOT NULL,
                     name TEXT NOT NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid)
+                    UNIQUE (user_tid, name)
                 )
                 """)
                 # As well as Characters, cross-referencing all of them together.
@@ -435,19 +436,21 @@ class Data:
         :type name: str
         :return: The created ProxyGroup (read-only).
         :rtype: ProxyGroup
-        """
-        if name in [_.name for _ in user.proxy_groups]:
-            raise ValueError(f"Duplicate entry ('{name}') for user of UUID '{user.uid}'.")
 
+        :raises ValueError: If a ProxyGroup under that name already exists for that User.
+        """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
             proxygroup_tid = str(uuid.uuid4())  # Generate a UUID for the proxy group
-            cursor.execute(
-                "INSERT INTO proxy_groups (tid, user_tid, name) VALUES (?, ?, ?)",
-                (proxygroup_tid, user.tid, name)
-            )
+            try:
+                cursor.execute(
+                    "INSERT INTO proxy_groups (tid, user_tid, name) VALUES (?, ?, ?)",
+                    (proxygroup_tid, user.tid, name)
+                )
+            except sqlite3.IntegrityError as e:
+                raise ValueError(f"Duplicate entry ('{name}') for user of UUID '{user.uid}'") from e
 
         return ProxyGroup(name, proxygroup_tid, [])
 
