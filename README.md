@@ -60,8 +60,11 @@ python -m venv .venv
 .venv/Scripts/Activate.ps1
 # And CMD (batch)...
 .venv/Scripts/activate.bat
-# On Linux Systems (format may vary!)
+
+# On Linux Systems (fish)
 source .venv/bin/activate.fish
+# Plain Bash...
+source .venv/bin/activate
 
 # Note, that you may have to remove the audioop-lts package if your installation already has audioop present.
 pip install -r requirements.txt 
