@@ -65,6 +65,39 @@ class Characters(commands.Cog):
 
         await ctx.reply(f"Successfully deleted '{character.name}'!")
 
+    @commands.command(name="avatar", description="View or update a Character's avatar.")
+    async def avatar_command(self, ctx: commands.Context, name: str, url: str | None = None):
+        try:
+            user = self.bot.database.get_user(str(ctx.message.author.id))
+        except ValueError:
+            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            return
+        try:
+            character = self.bot.database.get_character(user, name)
+        except ValueError:
+            await ctx.reply(f"You don't have a Character under the name '{name}'!")
+            return
+
+        if len(ctx.message.attachments) > 0:
+            url = ctx.message.attachments[0].url
+        if url:
+            if re.match(self.url_check_regex, url) is None: # validate url
+                await ctx.reply("Malformed avatar url!")
+                return
+
+            self.bot.database.update_character(user, character, "avatar", url)
+
+            await ctx.reply(
+                f"Successfully updated the avatar of '{name}'!\n"
+                "(Note, avatars are subject to [Link Rot](https://en.wikipedia.org/wiki/Link_rot), as Discord routinely"
+                " gets rid of unused images! Always keep a copy on one or more devices in case your avatar breaks!)"
+            )
+        else:
+            if character.avatar:
+                await ctx.reply(f"[avatar linkie]({character.avatar})")
+            else:
+                await ctx.reply(f"'{name}' does not currently have an avatar!")
+
     @commands.command(name="list", description="List all of your registered Characters.")
     async def list_command(self, ctx: commands.Context, page: int = 1):
         try:
