@@ -35,3 +35,50 @@ PSOMI.v2 isn't done yet, and will continue to grow when it is! View the [Roadmap
 PSOMI.v2 is currently in a _very_ early state, meaning things may be broken, non-functional, or buggy! While bug-reports are absolutely appreciated, it isn't recommended you use PSOMI.v2 for anything big, lest it gets confused and you lose your hard work.
 
 However, we're almost there! Commands are being worked on, and the rewrite is about 40% complete, with progress being made every week! Stay tuned, because PSOMI.v2 has so much to show!
+
+## Hosting Your Own Instance
+
+To host your own instance, you need three things:
+
+1. A computer to host it on
+2. A Discord Bot Token
+3. Python 3.13
+
+Then, follow these steps!
+
+**First, clone the repository:**
+
+```bash
+git clone https://github.com/zeropointnothing/psomi
+```
+
+**Then, once inside the `psomi` folder, install the required dependencies inside a virtual environment:**
+
+```bash
+python -m venv .venv
+# On Windows systems (PowerShell)
+.venv/Scripts/Activate.ps1
+# And CMD (batch)...
+.venv/Scripts/activate.bat
+# On Linux Systems (format may vary!)
+source .venv/bin/activate.fish
+
+# Note, that you may have to remove the audioop-lts package if your installation already has audioop present.
+pip install -r requirements.txt 
+```
+
+**Finally, create the config!**
+
+_inside a file named `config.json`:
+```json
+{
+    "token": "your.bots_token_here",
+    "db": "database.db"
+}
+```
+
+**...and run PSOMI.v2!**
+
+```bash
+python -m psomi
+```
