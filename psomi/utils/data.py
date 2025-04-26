@@ -110,7 +110,21 @@ class User:
     proxy_groups: list[ProxyGroup]
 
 
-def db_get_user_row(cursor: sqlite3.Cursor, did: str):
+def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
+    """
+    Get an SQLite Row containing user data.
+
+    Assumes row_factory has been set to sqlite3.Row!
+
+    :param cursor: The current SQL Database Cursor.
+    :type cursor: sqlite3.Cursor
+    :param did: The UUID of the Discord user to fetch.
+    :type did: str
+    :return: The SQLite Row fetched.
+    :rtype: sqlite3.Row
+
+    :raises ValueError: If the Database does not contain a user entry with that UUID.
+    """
     try:
         return cursor.execute(
             "SELECT * FROM users WHERE did=?",
@@ -120,7 +134,23 @@ def db_get_user_row(cursor: sqlite3.Cursor, did: str):
         raise ValueError(f"No such user of UUID '{did}'.") from e
 
 
-def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str):
+def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> sqlite3.Row:
+    """
+    Get an SQLite Row containing ProxyGroup data.
+
+    Assumes row_factory has been set to sqlite3.Row!
+
+    :param cursor: The current SQL Database Cursor.
+    :type cursor: sqlite3.Cursor
+    :param user_tid: The Table ID of the User to fetch.
+    :type user_tid: str
+    :param group_name: The name of the ProxyGroup to search for.
+    :type group_name: str
+    :return: The SQLite Row fetched.
+    :rtype: sqlite3.Row
+
+    :raises ValueError: If the Database does not contain a ProxyGroup under that name.
+    """
     try:
         return cursor.execute(
             "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
@@ -129,12 +159,38 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str):
     except IndexError as e:
         raise ValueError(f"No such ProxyGroup of name '{group_name}'.") from e
 
-def sort_by_page(groups: list, page_num: int, page_size: int) -> dict:
+def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str) -> sqlite3.Row:
+    """
+    Get an SQLite Row containing Character data.
+
+    Assumes row_factory has been set to sqlite3.Row!
+
+    :param cursor: The current SQL Database Cursor.
+    :type cursor: sqlite3.Cursor
+    :param user_tid: The Table ID of the User to fetch.
+    :type user_tid: str
+    :param character_name: The name of the Character to search for.
+    :type character_name: str
+    :return: The SQLite Row fetched.
+    :rtype: sqlite3.Row
+
+    :raises ValueError: If the Database does not contain a Character under that name.
+    """
+    try:
+        return cursor.execute(
+            "SELECT * FROM characters WHERE user_tid=? AND name=?",
+            (user_tid, character_name)
+        ).fetchall()[0]
+    except IndexError as e:
+        raise ValueError(f"No such character with name '{character_name}'.") from e
+
+
+def sort_by_page(groups: list[list], page_num: int, page_size: int) -> dict:
     """
     Sort a list of lists (groups) by pages, ensuring only one group is shown at a time.
 
     :param groups: The groups to sort.
-    :type groups: list
+    :type groups: list[list]
     :param page_num: What page to fetch.
     :type page_num: int
     :param page_size: How large the page should be.
@@ -156,16 +212,6 @@ def sort_by_page(groups: list, page_num: int, page_size: int) -> dict:
         page_num -= num_pages_in_group  # Move to the next group
 
     return {"group_num": 0, "page": []}  # Return blank dict indicating out of bounds
-
-def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str):
-    try:
-        return cursor.execute(
-            "SELECT * FROM characters WHERE user_tid=? AND name=?",
-            (user_tid, character_name)
-        ).fetchall()[0]
-    except IndexError as e:
-        raise ValueError(f"No such character with name '{character_name}'.") from e
-
 
 class Data:
     """
@@ -241,7 +287,6 @@ class Data:
 
         :raises ValueError: if the UUID is not valid or no such user exists.
         """
-
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -282,6 +327,16 @@ class Data:
 
     @enforce_annotations
     def add_user(self, uid: str) -> User:
+        """
+        Adds a user to the database by their UUID.
+
+        :param uid: The UUID of the user to add.
+        :type uid: str
+        :return: The added User object.
+        :rtype: User
+
+        :raises ValueError: If a user with that UUID already exists.
+        """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -312,6 +367,8 @@ class Data:
         :type name: str
         :return: The reconstructed ProxyGroup.
         :rtype: ProxyGroup
+
+        :raises ValueError: If either that User does not exist, or no such ProxyGroup could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -348,6 +405,8 @@ class Data:
         :type new_name: str
         :return: The renamed ProxyGroup.
         :rtype: ProxyGroup
+
+        :raises ValueError: If either that User does not exist, or no such ProxyGroup could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -404,6 +463,8 @@ class Data:
         :param proxy_group: The ProxyGroup to delete.
         :type proxy_group: ProxyGroup
         :return:
+
+        :raises ValueError: If either that User does not exist, or no such ProxyGroup could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -429,6 +490,8 @@ class Data:
         :type user: User
         :return: A ProxyGroup containing all Uncategorized characters.
         :rtype: ProxyGroup
+
+        :raises ValueError: If that User does not exist.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -456,6 +519,8 @@ class Data:
         :param name: The Character's name.
         :return: The reconstructed Character.
         :rtype: Character
+
+        :raises ValueError: If either that User does not exist, or no such Character could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -496,6 +561,8 @@ class Data:
         :type avatar: str | None
         :return: The created Character.
         :rtype: Character
+
+        :raises ValueError: If either that User does not exist, or the Database rejected the request.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -525,6 +592,8 @@ class Data:
         :param character: The Character to delete.
         :type character: Character
         :return:
+
+        :raises ValueError: If either that User does not exist, or no such Character could be found.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -550,6 +619,8 @@ class Data:
         :type proxy_group: ProxyGroup
         :return: The updated Character.
         :rtype: Character
+
+        :raises ValueError: If the User, ProxyGroup, or Character could not be found in the Database.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -583,6 +654,9 @@ class Data:
         :param character: The Character to remove from the ProxyGroup.
         :return: The updated Character.
         :rtype: Character
+
+        :raises ValueError: If either that User does not exist, no such Character could be found, or that Character
+        was already not in a group.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -621,6 +695,9 @@ class Data:
         :type key: str
         :param value: The value to update it with.
         :return: The updated Character.
+
+        :raises ValueError: If either that User does not exist, no such Character could be found, or the key supplied
+        could not be updated.
         """
 
         # a list of values that should always be rejected.
