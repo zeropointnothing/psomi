@@ -17,7 +17,7 @@ PSOMI.v2 will always keep its code open, making it easier to find and squash bug
 
 Not only that, but PSOMI.v2's code has been designed with **simplicity** and **expandability** in mind. If you don't like something, change it! With a class-based approach, and plenty of documentation built into the codebase, PSOMI.v2 will do its best to help!
 
-### Prefences Galore!
+### Preferences Galore!
 
 _(coming soon!)_
 
