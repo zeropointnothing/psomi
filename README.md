@@ -27,7 +27,7 @@ PSOMI.v2 is being re-designed around _you_ (or your users!), allowing almost eve
 
 ### And So Much More!
 
-PSOMI.v2 isn't done yet, and will continue to grow when it is! View the Roadmap (coming soon) to see what's done, what's being done, and what's planned for the future!
+PSOMI.v2 isn't done yet, and will continue to grow when it is! View the [Roadmap](https://github.com/users/zeropointnothing/projects/14) to see what's done, what's being done, and what's planned for the future!
 
 
 ## Why (not) PSOMI.v2?
