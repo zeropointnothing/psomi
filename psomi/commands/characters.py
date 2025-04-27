@@ -125,6 +125,27 @@ class Characters(commands.Cog):
 
         await ctx.reply(f"Successfully updated the brackets of '{name}' to '{brackets}'!")
 
+    @commands.command(name="rename", description="Rename a Character.")
+    async def rename_command(self, ctx: commands.Context, old_name: str, new_name: str):
+        try:
+            user = self.bot.database.get_user(str(ctx.message.author.id))
+        except NotFoundError:
+            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            return
+        try:
+            character = self.bot.database.get_character(user, old_name)
+        except NotFoundError:
+            await ctx.reply(f"You don't have a Character under the name '{old_name}'!")
+            return
+
+        try:
+            self.bot.database.update_character(user, character, "name", new_name)
+        except:
+            await ctx.reply(f"The name you supplied ('{new_name}') is already in use!")
+            return
+        
+        await ctx.reply(f"Successfully updated the name of '{old_name}' to '{new_name}'!")
+
     @commands.command(name="list", description="List all of your registered Characters.")
     async def list_command(self, ctx: commands.Context, page: int = 1):
         try:
