@@ -704,6 +704,7 @@ class Data:
 
         :raises NotFoundError: If either that User does not exist or no such Character could be found.
         :raises ValueError: The key supplied could not be updated.
+        :raises DuplicateError: The new value failed integrity checks.
         """
 
         # a list of values that should always be rejected.
