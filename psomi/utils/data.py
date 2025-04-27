@@ -2,6 +2,8 @@ import sqlite3
 import os.path
 import uuid
 from dataclasses import dataclass
+
+from psomi.errors import NotFoundError, DuplicateError
 from psomi.utils.checking import enforce_annotations
 
 #TODO: Possibly find a better solution than tossing objects around?
@@ -123,7 +125,7 @@ def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
     :return: The SQLite Row fetched.
     :rtype: sqlite3.Row
 
-    :raises ValueError: If the Database does not contain a user entry with that UUID.
+    :raises NotFoundError: If the Database does not contain a user entry with that UUID.
     """
     try:
         return cursor.execute(
@@ -131,7 +133,7 @@ def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
             (did,)
         ).fetchall()[0]
     except IndexError as e:
-        raise ValueError(f"No such user of UUID '{did}'.") from e
+        raise NotFoundError(f"No such user of UUID '{did}'.") from e
 
 
 def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> sqlite3.Row:
@@ -149,7 +151,7 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> 
     :return: The SQLite Row fetched.
     :rtype: sqlite3.Row
 
-    :raises ValueError: If the Database does not contain a ProxyGroup under that name.
+    :raises NotFoundError: If the Database does not contain a ProxyGroup under that name.
     """
     try:
         return cursor.execute(
@@ -157,7 +159,7 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> 
             (user_tid, group_name)
         ).fetchall()[0]
     except IndexError as e:
-        raise ValueError(f"No such ProxyGroup of name '{group_name}'.") from e
+        raise NotFoundError(f"No such ProxyGroup of name '{group_name}'.") from e
 
 def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str) -> sqlite3.Row:
     """
@@ -174,7 +176,7 @@ def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str)
     :return: The SQLite Row fetched.
     :rtype: sqlite3.Row
 
-    :raises ValueError: If the Database does not contain a Character under that name.
+    :raises NotFoundError: If the Database does not contain a Character under that name.
     """
     try:
         return cursor.execute(
@@ -182,7 +184,7 @@ def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str)
             (user_tid, character_name)
         ).fetchall()[0]
     except IndexError as e:
-        raise ValueError(f"No such character with name '{character_name}'.") from e
+        raise NotFoundError(f"No such character with name '{character_name}'.") from e
 
 
 def sort_by_page(groups: list[list], page_num: int, page_size: int) -> dict:
@@ -286,7 +288,7 @@ class Data:
         :returns: The fully reconstructed User class.
         :rtype: User
 
-        :raises ValueError: if the UUID is not valid or no such user exists.
+        :raises NotFoundError: if the UUID is not valid or no such user exists.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -336,7 +338,7 @@ class Data:
         :return: The added User object.
         :rtype: User
 
-        :raises ValueError: If a user with that UUID already exists.
+        :raises DuplicateError: If a user with that UUID already exists.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -349,7 +351,7 @@ class Data:
                     (user_tid, uid)
                 )
             except sqlite3.IntegrityError as e:
-                raise ValueError(f"User of UUID '{uid}' already exists in database!") from e
+                raise DuplicateError(f"User of UUID '{uid}' already exists in database!") from e
 
             return User(uid, user_tid, [])
 
@@ -369,7 +371,7 @@ class Data:
         :return: The reconstructed ProxyGroup.
         :rtype: ProxyGroup
 
-        :raises ValueError: If either that User does not exist, or no such ProxyGroup could be found.
+        :raises NotFoundError: If either that User does not exist or no such ProxyGroup could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -407,7 +409,7 @@ class Data:
         :return: The renamed ProxyGroup.
         :rtype: ProxyGroup
 
-        :raises ValueError: If either that User does not exist, or no such ProxyGroup could be found.
+        :raises NotFoundError: If either that User does not exist or no such ProxyGroup could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -437,7 +439,7 @@ class Data:
         :return: The created ProxyGroup (read-only).
         :rtype: ProxyGroup
 
-        :raises ValueError: If a ProxyGroup under that name already exists for that User.
+        :raises DuplicateError: If a ProxyGroup under that name already exists for that User.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -450,7 +452,7 @@ class Data:
                     (proxygroup_tid, user.tid, name)
                 )
             except sqlite3.IntegrityError as e:
-                raise ValueError(f"Duplicate entry ('{name}') for user of UUID '{user.uid}'") from e
+                raise DuplicateError(f"Duplicate entry ('{name}') for user of UUID '{user.uid}'") from e
 
         return ProxyGroup(name, proxygroup_tid, [])
 
@@ -467,7 +469,7 @@ class Data:
         :type proxy_group: ProxyGroup
         :return:
 
-        :raises ValueError: If either that User does not exist, or no such ProxyGroup could be found.
+        :raises NotFoundError: If either that User does not exist or no such ProxyGroup could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -494,7 +496,7 @@ class Data:
         :return: A ProxyGroup containing all Uncategorized characters.
         :rtype: ProxyGroup
 
-        :raises ValueError: If that User does not exist.
+        :raises NotFoundError: If that User does not exist.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -523,7 +525,7 @@ class Data:
         :return: The reconstructed Character.
         :rtype: Character
 
-        :raises ValueError: If either that User does not exist, or no such Character could be found.
+        :raises NotFoundError: If either that User does not exist or no such Character could be found.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -565,7 +567,8 @@ class Data:
         :return: The created Character.
         :rtype: Character
 
-        :raises ValueError: If either that User does not exist, or the Database rejected the request.
+        :raises NotFoundError: If that User does not exist.
+        :raises DuplicateError: If one or more UNIQUE values are already present (failed integrity checks).
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -580,8 +583,8 @@ class Data:
                     "(?, ?, ?, ?, ?, ?)",
                     (character_tid, None, db_user["tid"], name, prefix, avatar)
                 )
-            except sqlite3.IntegrityError:
-                raise ValueError(f"One or more values failed database integrity checks!")
+            except sqlite3.IntegrityError as e:
+                raise DuplicateError(f"One or more values failed database integrity checks!") from e
 
         return Character(name, prefix, None, avatar)
 
@@ -596,7 +599,7 @@ class Data:
         :type character: Character
         :return:
 
-        :raises ValueError: If either that User does not exist, or no such Character could be found.
+        :raises NotFoundError: If either that User does not exist or no such Character could be found.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -623,7 +626,7 @@ class Data:
         :return: The updated Character.
         :rtype: Character
 
-        :raises ValueError: If the User, ProxyGroup, or Character could not be found in the Database.
+        :raises NotFoundError: If the User, ProxyGroup, or Character could not be found in the Database.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -658,8 +661,8 @@ class Data:
         :return: The updated Character.
         :rtype: Character
 
-        :raises ValueError: If either that User does not exist, no such Character could be found, or that Character
-        was already not in a group.
+        :raises NotFoundError: If either that User does not exist or no such Character could be found.
+        :raises ValueError: If that Character was already not in a group.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -699,8 +702,8 @@ class Data:
         :param value: The value to update it with.
         :return: The updated Character.
 
-        :raises ValueError: If either that User does not exist, no such Character could be found, or the key supplied
-        could not be updated.
+        :raises NotFoundError: If either that User does not exist or no such Character could be found.
+        :raises ValueError: The key supplied could not be updated.
         """
 
         # a list of values that should always be rejected.
