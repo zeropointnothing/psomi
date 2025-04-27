@@ -41,7 +41,7 @@ class Characters(commands.Cog):
             user = self.bot.database.add_user(str(ctx.message.author.id))
         try:
             self.bot.database.create_character(user, name, prefix, avatar)
-        except NotFoundError:
+        except DuplicateError:
             await ctx.reply("Unable to register Character, as one or more values are already present.\n"
                             "Make sure both the name and prefix of your Character is unique!")
             return
@@ -140,7 +140,7 @@ class Characters(commands.Cog):
 
         try:
             self.bot.database.update_character(user, character, "name", new_name)
-        except:
+        except DuplicateError:
             await ctx.reply(f"The name you supplied ('{new_name}') is already in use!")
             return
         
