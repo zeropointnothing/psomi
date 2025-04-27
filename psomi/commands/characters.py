@@ -49,8 +49,8 @@ class Characters(commands.Cog):
         await ctx.reply(f"Successfully registered '{name}'!"
                         f" To use them, type in `{prefix.replace("text", "<your message>")}`!")
 
-    @commands.command(name="delete", description="Delete a Character.")
-    async def delete_command(self, ctx: commands.Context, name: str):
+    @commands.command(name="unregister", description="Unregister (or delete) a Character.")
+    async def unregister_command(self, ctx: commands.Context, name: str):
         try:
             user = self.bot.database.get_user(str(ctx.message.author.id))
         except NotFoundError:
