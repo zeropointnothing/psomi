@@ -155,9 +155,13 @@ class Characters(commands.Cog):
             return
 
         # create the embed
-        characters = sort_by_page([_.characters for _ in user.proxy_groups], page, 20)
+        characters = sort_by_page([_.characters for _ in user.proxy_groups], page, 2)
+        if characters["group_num"] == 0:
+            await ctx.reply(f"That's out of bounds! Please choose a number between 0 and {characters["page_total"]}!")
+            return
+
         embed = discord.Embed(
-            title=f"Registered Characters [{characters["group_num"]}/{len(user.proxy_groups)}]"
+            title=f"Registered Characters [{page}/{characters["page_total"]}]"
                   f"({user.proxy_groups[characters["group_num"]-1].name}):"
         )
 
@@ -168,7 +172,9 @@ class Characters(commands.Cog):
                       + (f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None")
             )
 
-        if characters["group_num"] < len(user.proxy_groups):
+        if not characters["page"]:
+            embed.set_footer(text="Nothing here...")
+        elif page < characters["page_total"]:
             embed.set_footer(text="More on next page...")
 
         # reply to the user

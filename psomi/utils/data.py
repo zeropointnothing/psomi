@@ -200,20 +200,25 @@ def sort_by_page(groups: list[list], page_num: int, page_size: int) -> dict:
     :return: The sorted page.
     :rtype: dict
     """
+    page_total = [max(1, -(-len(group) // page_size)) for group in groups]
+
     for i, group in enumerate(groups):
-        num_pages_in_group = -(-len(group) // page_size)
+        num_pages_in_group = page_total[i]
 
         if page_num <= num_pages_in_group:
             start_idx = (page_num - 1) * page_size
             end_idx = start_idx + page_size
+            
             return {
                 "group_num": i+1,
-                "page": group[start_idx:end_idx]
+                "page_total": sum(page_total),
+                "page": group[start_idx:end_idx],
             }
 
-        page_num -= num_pages_in_group  # Move to the next group
+        page_num -= num_pages_in_group
 
-    return {"group_num": 0, "page": []}  # Return blank dict indicating out of bounds
+    # Out of bounds.
+    return {"group_num": 0, "page_total": sum(page_total), "page": []}
 
 class Data:
     """
