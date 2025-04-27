@@ -19,7 +19,7 @@ class Characters(commands.Cog):
                 r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
 
-    @commands.command(name="register", desciption="Create and register a Character with PSOMI.")
+    @commands.command(name="register", description="Create and register a Character with PSOMI.")
     async def register_command(self, ctx: commands.Context, name: str, prefix: str, avatar: str | None = None):
         if not re.match(".*text.*", prefix):
             await ctx.reply("Invalid prefix supplied. Please ensure your prefix follows the `<pfx>:text:<sfx>` format!")
