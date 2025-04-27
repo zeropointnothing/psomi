@@ -162,7 +162,7 @@ class Characters(commands.Cog):
 
         embed = discord.Embed(
             title=f"Registered Characters [{page}/{characters["page_total"]}]"
-                  f"({user.proxy_groups[characters["group_num"]-1].name}):"
+                  f"({user.proxy_groups[characters["group_num"]-1].title}):"
         )
 
         for i, character in enumerate(characters["page"]):

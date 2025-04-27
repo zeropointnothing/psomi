@@ -31,26 +31,26 @@ class ProxyGroup:
     Note, that all ProxyGroup objects should be treated as read-only, with changes being made directly to the DB.
     """
     @enforce_annotations
-    def __init__(self, name: str, tid: str | None, characters: list[Character]):
+    def __init__(self, title: str, tid: str | None, characters: list[Character]):
         """
         Initializes the ProxyGroup.
 
-        :param name: The name of the group.
-        :type name: str
+        :param title: The title (name) of the group.
+        :type title: str
         :param characters: Any Character objects it should store.
         :type characters: list[Character]
         """
         self.__characters = characters
-        self.__name = name
+        self.__title = title
         self.__tid = tid
 
     @property
-    def name(self):
+    def title(self):
         """
-        :returns: The ProxyGroup's name.
+        :returns: The ProxyGroup's title (name).
         :rtype: str
         """
-        return self.__name
+        return self.__title
 
     @property
     def tid(self):
@@ -136,7 +136,7 @@ def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
         raise NotFoundError(f"No such user of UUID '{did}'.") from e
 
 
-def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> sqlite3.Row:
+def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_title: str) -> sqlite3.Row:
     """
     Get an SQLite Row containing ProxyGroup data.
 
@@ -146,8 +146,8 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> 
     :type cursor: sqlite3.Cursor
     :param user_tid: The Table ID of the User to fetch.
     :type user_tid: str
-    :param group_name: The name of the ProxyGroup to search for.
-    :type group_name: str
+    :param group_title: The title of the ProxyGroup to search for.
+    :type group_title: str
     :return: The SQLite Row fetched.
     :rtype: sqlite3.Row
 
@@ -156,10 +156,10 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_name: str) -> 
     try:
         return cursor.execute(
             "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
-            (user_tid, group_name)
+            (user_tid, group_title)
         ).fetchall()[0]
     except IndexError as e:
-        raise NotFoundError(f"No such ProxyGroup of name '{group_name}'.") from e
+        raise NotFoundError(f"No such ProxyGroup of name '{group_title}'.") from e
 
 def db_get_character(cursor: sqlite3.Cursor, user_tid: str, character_name: str) -> sqlite3.Row:
     """
@@ -260,9 +260,9 @@ class Data:
                 CREATE TABLE proxy_groups (
                     tid TEXT PRIMARY KEY,
                     user_tid TEXT NOT NULL,
-                    name TEXT NOT NULL,
+                    title TEXT NOT NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid)
-                    UNIQUE (user_tid, name)
+                    UNIQUE (user_tid, title)
                 )
                 """)
                 # As well as Characters, cross-referencing all of them together.
@@ -315,7 +315,7 @@ class Data:
                     Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in db_characters
                 ]  # reconstruction
 
-                final.append(ProxyGroup(group["name"], group["name"], db_characters))
+                final.append(ProxyGroup(group["title"], group["tid"], db_characters))
 
             # add all characters without a group into a new "Uncategorized" ProxyGroup
             db_ungrouped = cursor.execute(
@@ -361,7 +361,7 @@ class Data:
             return User(uid, user_tid, [])
 
     @enforce_annotations
-    def get_proxygroup(self, user: User, name: str) -> ProxyGroup:
+    def get_proxygroup(self, user: User, title: str) -> ProxyGroup:
         """
         Find and reconstruct a User's ProxyGroup by its name.
 
@@ -371,8 +371,8 @@ class Data:
 
         :param user: The user to search for.
         :type user: User
-        :param name: The name of the ProxyGroup to reconstruct.
-        :type name: str
+        :param title: The name of the ProxyGroup to reconstruct.
+        :type title: str
         :return: The reconstructed ProxyGroup.
         :rtype: ProxyGroup
 
@@ -383,7 +383,7 @@ class Data:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             db_user = db_get_user_row(cursor, user.uid)
-            db_group = db_get_group_row(cursor, db_user["tid"], name)
+            db_group = db_get_group_row(cursor, db_user["tid"], title)
 
             db_characters = cursor.execute(
                 "SELECT * FROM characters WHERE proxygroup_tid=?",
@@ -391,9 +391,9 @@ class Data:
             ).fetchall()
 
             return ProxyGroup(
-                name,
+                title,
                 db_group["tid"],
-                [Character(_["name"], _["prefix"], db_group["name"], _["avatar"]) for _ in db_characters]
+                [Character(_["name"], _["prefix"], db_group["title"], _["avatar"]) for _ in db_characters]
             )
 
             # print(user)
@@ -401,17 +401,17 @@ class Data:
             # print(characters)
 
     @enforce_annotations
-    def rename_proxygroup(self, user: User, proxy_group: ProxyGroup, new_name: str) -> ProxyGroup:
+    def retitle_proxygroup(self, user: User, proxy_group: ProxyGroup, new_title: str) -> ProxyGroup:
         """
-        Modify a User's ProxyGroup name, then return a new ProxyGroup object.
+        Modify a User's ProxyGroup title, then return a new ProxyGroup object.
 
         :param user: The User to search for.
         :type user: str
-        :param proxy_group: The ProxyGroup to rename.
+        :param proxy_group: The ProxyGroup to retitle.
         :type proxy_group: ProxyGroup
-        :param new_name: The ProxyGroup's new name.
-        :type new_name: str
-        :return: The renamed ProxyGroup.
+        :param new_title: The ProxyGroup's new title.
+        :type new_title: str
+        :return: The retitled ProxyGroup.
         :rtype: ProxyGroup
 
         :raises NotFoundError: If either that User does not exist or no such ProxyGroup could be found.
@@ -424,14 +424,14 @@ class Data:
             db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
 
             cursor.execute(
-                "UPDATE proxy_groups SET name=? WHERE tid=?",
-                (new_name,db_group["tid"])
+                "UPDATE proxy_groups SET title=? WHERE tid=?",
+                (new_title,db_group["tid"])
             )
 
-        return ProxyGroup(new_name, db_group["tid"], proxy_group.characters)
+        return ProxyGroup(new_title, db_group["tid"], proxy_group.characters)
 
     @enforce_annotations
-    def create_proxygroup(self, user: User, name: str) -> ProxyGroup:
+    def create_proxygroup(self, user: User, title: str) -> ProxyGroup:
         """
         Create a new ProxyGroup under a specific User, then return it.
 
@@ -439,12 +439,12 @@ class Data:
 
         :param user: The User to create the ProxyGroup for.
         :type user: User
-        :param name: The name of the new ProxyGroup.
-        :type name: str
+        :param title: The title (name) of the new ProxyGroup.
+        :type title: str
         :return: The created ProxyGroup (read-only).
         :rtype: ProxyGroup
 
-        :raises DuplicateError: If a ProxyGroup under that name already exists for that User.
+        :raises DuplicateError: If a ProxyGroup under that title already exists for that User.
         """
         with sqlite3.connect(self.__data_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -453,13 +453,13 @@ class Data:
             proxygroup_tid = str(uuid.uuid4())  # Generate a UUID for the proxy group
             try:
                 cursor.execute(
-                    "INSERT INTO proxy_groups (tid, user_tid, name) VALUES (?, ?, ?)",
-                    (proxygroup_tid, user.tid, name)
+                    "INSERT INTO proxy_groups (tid, user_tid, title) VALUES (?, ?, ?)",
+                    (proxygroup_tid, user.tid, title)
                 )
             except sqlite3.IntegrityError as e:
-                raise DuplicateError(f"Duplicate entry ('{name}') for user of UUID '{user.uid}'") from e
+                raise DuplicateError(f"Duplicate entry ('{title}') for user of UUID '{user.uid}'") from e
 
-        return ProxyGroup(name, proxygroup_tid, [])
+        return ProxyGroup(title, proxygroup_tid, [])
 
     @enforce_annotations
     def delete_proxygroup(self, user: User, proxy_group: ProxyGroup) -> None:
@@ -541,7 +541,7 @@ class Data:
             try:
                 db_character = db_get_character(cursor, db_user["tid"], name)
                 character_group = cursor.execute(
-                    "SELECT name FROM proxy_groups WHERE tid=?",
+                    "SELECT title FROM proxy_groups WHERE tid=?",
                     (db_character["proxygroup_tid"],)
                 ).fetchone()[0]
             except TypeError: # fetchone returns None instead of a single item list if it can't find something.
@@ -638,7 +638,7 @@ class Data:
             cursor = conn.cursor()
 
             db_user = db_get_user_row(cursor, user.uid)
-            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
+            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.title)
             db_character = db_get_character(cursor, db_user["tid"], character.name)
 
             if db_character["proxygroup_tid"] == db_group["tid"]:
@@ -652,7 +652,7 @@ class Data:
             return Character(
                 character.name,
                 character.prefix,
-                db_group["name"],
+                db_group["title"],
                 character.avatar
             )
 
