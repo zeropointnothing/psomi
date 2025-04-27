@@ -4,6 +4,7 @@ import aiohttp, asyncio
 from psomi.commands import command_groups
 from psomi.utils.bot import PsomiBot
 from psomi.utils.parsing import parse_message
+from psomi.errors import NotFoundError
 
 intents = discord.Intents.default() #Defining intents
 intents.message_content = True # Adding the message_content intent so that the bot can read user messages
@@ -22,7 +23,13 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author.bot:
         return
-    
+
+    try:
+        user = bot.database.get_user(str(message.author.id))
+    except NotFoundError: # user isn't in the database, we don't need to continue
+        await bot.process_commands(message)
+        return
+
     try:
         channel_webhooks = await bot.http.channel_webhooks(message.channel.id)
     except discord.errors.NotFound:
@@ -35,12 +42,11 @@ async def on_message(message: discord.Message):
             break
     if not psomi_webhook:
         psomi_webhook = await bot.http.create_webhook(message.channel.id, name=bot.webhook_name)
-    
+
     psomi_webhook_id = psomi_webhook.get("id")
     psomi_webhook_token = psomi_webhook.get("token")
     psomi_webhook_url = f"https://discord.com/api/webhooks/{psomi_webhook_id}/{psomi_webhook_token}"
-    user = bot.database.get_user(str(message.author.id))
-    
+
     parsed_message = parse_message(user, message.content)
     async with aiohttp.ClientSession() as session:
         for character in parsed_message:
