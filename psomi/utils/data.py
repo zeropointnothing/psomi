@@ -727,6 +727,8 @@ class Data:
                     f"UPDATE characters SET {key}=? WHERE tid=?",
                     (value, db_character["tid"])
                 )
+            except sqlite3.IntegrityError as e:
+                raise DuplicateError("The requested key failed integrity checks!") from e
             except sqlite3.OperationalError:
                 raise ValueError("Invalid key name.")
 

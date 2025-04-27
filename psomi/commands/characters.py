@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 from psomi.utils.bot import PsomiBot
 from psomi.utils.data import sort_by_page
+from psomi.errors import NotFoundError, DuplicateError
 
 
 class Characters(commands.Cog):
@@ -36,11 +37,11 @@ class Characters(commands.Cog):
 
         try:
             user = self.bot.database.get_user(str(ctx.message.author.id))
-        except ValueError: # we should add the user if they are not present
+        except NotFoundError: # we should add the user if they are not present
             user = self.bot.database.add_user(str(ctx.message.author.id))
         try:
             self.bot.database.create_character(user, name, prefix, avatar)
-        except ValueError:
+        except NotFoundError:
             await ctx.reply("Unable to register Character, as one or more values are already present.\n"
                             "Make sure both the name and prefix of your Character is unique!")
             return
@@ -52,12 +53,12 @@ class Characters(commands.Cog):
     async def delete_command(self, ctx: commands.Context, name: str):
         try:
             user = self.bot.database.get_user(str(ctx.message.author.id))
-        except ValueError:
+        except NotFoundError:
             await ctx.reply("You don't have any registered Characters! Try again after registering some!")
             return
         try:
             character = self.bot.database.get_character(user, name)
-        except ValueError:
+        except NotFoundError:
             await ctx.reply(f"You don't have a Character under the name '{name}'!")
             return
 
@@ -69,12 +70,12 @@ class Characters(commands.Cog):
     async def avatar_command(self, ctx: commands.Context, name: str, url: str | None = None):
         try:
             user = self.bot.database.get_user(str(ctx.message.author.id))
-        except ValueError:
+        except NotFoundError:
             await ctx.reply("You don't have any registered Characters! Try again after registering some!")
             return
         try:
             character = self.bot.database.get_character(user, name)
-        except ValueError:
+        except NotFoundError:
             await ctx.reply(f"You don't have a Character under the name '{name}'!")
             return
 
@@ -98,11 +99,37 @@ class Characters(commands.Cog):
             else:
                 await ctx.reply(f"'{name}' does not currently have an avatar!")
 
+    @commands.command(name="brackets", description="Update a Character's Prefix/Suffix.")
+    async def brackets_command(self, ctx: commands.Context, name: str, brackets: str):
+        if not re.match(".*text.*", brackets):
+            await ctx.reply(f"The supplied brackets ({brackets}) were invalid. Please ensure they follow the format `<your_prefix>:text:<your_suffix>`!")
+            return
+        
+        try:
+            user = self.bot.database.get_user(str(ctx.message.author.id))
+        except NotFoundError:
+            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            return
+        try:
+            character = self.bot.database.get_character(user, name)
+        except NotFoundError:
+            await ctx.reply(f"You don't have a Character under the name '{name}'!")
+            return
+
+        try:
+            self.bot.database.update_character(user, character, "prefix", brackets)
+        except DuplicateError:
+            in_use_by = [character for group in user.proxy_groups for character in group.characters if character.prefix == brackets][0]
+            await ctx.reply(f"The brackets you supplied ('{brackets}') are already in use by another character ('{in_use_by.name}')!")
+            return
+
+        await ctx.reply(f"Successfully updated the brackets of '{name}' to '{brackets}'!")
+
     @commands.command(name="list", description="List all of your registered Characters.")
     async def list_command(self, ctx: commands.Context, page: int = 1):
         try:
             user = self.bot.database.get_user(str(ctx.message.author.id))
-        except ValueError:
+        except NotFoundError:
             await ctx.reply("You don't have any registered Characters! Try again after registering some!")
             return
 
