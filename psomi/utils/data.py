@@ -268,8 +268,8 @@ class Data:
                     prefix TEXT NOT NULL,
                     avatar TEXT,
                     FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid) ON DELETE SET NULL,
-                    FOREIGN KEY (user_tid) REFERENCES users(tid)
-                    UNIQUE (user_tid, name)
+                    FOREIGN KEY (user_tid) REFERENCES users(tid),
+                    UNIQUE (user_tid, name),
                     UNIQUE (user_tid, prefix)
                 )
                 """)
