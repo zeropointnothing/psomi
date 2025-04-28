@@ -86,7 +86,7 @@ class ProxyGroup:
         raise ValueError(f"No such character '{name}'.")
 
     def __repr__(self):
-        return (f"ProxyGroup(\"{self.__name}\", " +
+        return (f"ProxyGroup(\"{self.__title}\", " +
                 ("None" if self.__tid is None else f"\"{self.__tid}\"")
                 + f", {self.__characters})")
 
