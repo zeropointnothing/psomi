@@ -251,14 +251,14 @@ class Data:
                 #
                 cursor.execute("""
                 CREATE TABLE users (
-                    tid TEXT PRIMARY KEY,
+                    tid TEXT UNIQUE NOT NULL PRIMARY KEY,
                     did TEXT UNIQUE NOT NULL
                 )
                 """)
                 # Store ProxyGroups in their own table.
                 cursor.execute("""
                 CREATE TABLE proxy_groups (
-                    tid TEXT PRIMARY KEY,
+                    tid TEXT UNIQUE NOT NULL PRIMARY KEY,
                     user_tid TEXT NOT NULL,
                     title TEXT NOT NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid)
@@ -268,7 +268,7 @@ class Data:
                 # As well as Characters, cross-referencing all of them together.
                 cursor.execute("""
                 CREATE TABLE characters (
-                    tid TEXT PRIMARY KEY,
+                    tid TEXT UNIQUE NOT NULL PRIMARY KEY,
                     proxygroup_tid TEXT DEFAULT NULL,
                     user_tid TEXT NOT NULL,
                     name TEXT NOT NULL,
