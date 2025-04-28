@@ -155,7 +155,7 @@ def db_get_group_row(cursor: sqlite3.Cursor, user_tid: str, group_title: str) ->
     """
     try:
         return cursor.execute(
-            "SELECT * FROM proxy_groups WHERE user_tid=? AND name=?",
+            "SELECT * FROM proxy_groups WHERE user_tid=? AND title=?",
             (user_tid, group_title)
         ).fetchall()[0]
     except IndexError as e:
