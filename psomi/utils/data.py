@@ -421,7 +421,7 @@ class Data:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             db_user = db_get_user_row(cursor, user.uid)
-            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
+            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.title)
 
             cursor.execute(
                 "UPDATE proxy_groups SET title=? WHERE tid=?",
@@ -482,7 +482,7 @@ class Data:
             cursor = conn.cursor()
             conn.execute("PRAGMA foreign_keys = ON") # disabled by default, so re-enable it for auto nullification
             db_user = db_get_user_row(cursor, user.uid)
-            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.name)
+            db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.title)
 
             cursor.execute(
                 "DELETE FROM proxy_groups WHERE tid=?",
@@ -642,7 +642,7 @@ class Data:
             db_character = db_get_character(cursor, db_user["tid"], character.name)
 
             if db_character["proxygroup_tid"] == db_group["tid"]:
-                raise ValueError(f"Character '{character.name}' is already present in ProxyGroup '{proxy_group.name}'")
+                raise ValueError(f"Character '{character.name}' is already present in ProxyGroup '{proxy_group.title}'")
 
             cursor.execute(
                 "UPDATE characters SET proxygroup_tid=? WHERE tid=?",
