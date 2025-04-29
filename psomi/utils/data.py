@@ -2,7 +2,7 @@ import sqlite3
 import os.path
 import uuid
 from dataclasses import dataclass
-
+from rapidfuzz import process, fuzz
 from psomi.errors import NotFoundError, DuplicateError
 from psomi.utils.checking import enforce_annotations
 
@@ -99,18 +99,47 @@ class ProxyGroup:
         for _ in self.__characters:
             yield _
 
-
-@dataclass
 class User:
-    """
-    User Dataclass.
+    @enforce_annotations
+    def __init__(self, uid: str, tid: str, proxy_groups: list[ProxyGroup]):
+        self.__uid = uid
+        self.__tid = tid
+        self.__proxy_groups = proxy_groups
 
-    Stores various information on a specific Discord user.
-    """
-    uid: str
-    tid: str
-    proxy_groups: list[ProxyGroup]
+    @property
+    def uid(self):
+        return self.__uid
 
+    @property
+    def tid(self):
+        return self.__tid
+
+    @property
+    def proxy_groups(self):
+        return self.__proxy_groups
+
+    @property
+    def characters_flattened(self):
+        """
+        Get a flattened list of this User's Characters.
+        :return:
+        """
+        return [i for si in self.__proxy_groups for i in si]
+
+    def get_character_by_search(self, query: str, limit: int = 10) -> list[tuple[Character, int]]:
+        characters = self.characters_flattened[:limit]
+        # noinspection PyTypeChecker
+        matches = process.extract( # rank by character name
+            query, [_.name for _ in characters],
+            scorer=fuzz.partial_ratio
+        )
+        # then sort
+        matches.sort(key=lambda x: (fuzz.ratio(query, x[0]) + fuzz.partial_ratio(query, x[0])), reverse=True)
+        # then convert back into Character objects
+        return [
+            (characters[match[2]] ,match[1]) # process.extract also includes the original index
+            for i, match in enumerate(matches) if match[1] >= 60
+        ]
 
 def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
     """
@@ -312,7 +341,7 @@ class Data:
                 db_characters = cursor.execute("SELECT * FROM characters WHERE proxygroup_tid=?",
                                             (group["tid"],)).fetchall()
                 db_characters = [
-                    Character(_["name"], _["prefix"], group["tid"], _["avatar"]) for _ in db_characters
+                    Character(_["name"], _["prefix"], group["title"], _["avatar"]) for _ in db_characters
                 ]  # reconstruction
 
                 final.append(ProxyGroup(group["title"], group["tid"], db_characters))

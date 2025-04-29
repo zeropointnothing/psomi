@@ -1,10 +1,17 @@
 import re
 import discord
 from discord.ext import commands
+from rapidfuzz import process, fuzz
 from psomi.utils.bot import PsomiBot
 from psomi.utils.data import sort_by_page
 from psomi.errors import NotFoundError, DuplicateError
 
+def fuzzy_search(choices: list, query: str, limit: int = 10) -> list[dict]:
+    # noinspection PyTypeChecker
+    matches = process.extract(query, choices, scorer=fuzz.partial_ratio, limit=limit)
+    matches.sort(key=lambda x: (fuzz.ratio(query, x[0]) + fuzz.partial_ratio(query, x[0])), reverse=True)
+
+    return [{"item": match[0], "faith": match[1]} for match in matches if match[1] >= 60]
 
 class Characters(commands.Cog):
     def __init__(self, bot):
@@ -195,6 +202,29 @@ class Characters(commands.Cog):
                 pass
         else:
             await ctx.reply(embed=embed)
+
+    @commands.command(name="find", description="Find a Character via Fuzzy Searching.")
+    async def find_command(self, ctx: commands.Context, query: str):
+        try:
+            user = self.bot.database.get_user(str(ctx.message.author.id))
+        except NotFoundError:
+            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            return
+
+        embed = discord.Embed(title=f"Search Results for '{query}':")
+        embed.set_footer(text="PSOMI uses Fuzzy searching to find characters. Try to your searches specific. "
+                              "It may get confused!")
+
+        for i, result in enumerate(user.get_character_by_search(query, limit=10)):
+            embed.add_field(
+                name=result[0].name,
+                value=f"Faith: {round(result[1], 2)}\n"
+                      f"ProxyGroup: {result[0].proxygroup_name}\n"
+                      f"Brackets: {result[0].prefix}\n" +
+                      (f"Avatar: [linkie]({result[0].avatar})" if result[0].avatar else "Avatar: None")
+            )
+
+        await ctx.reply(embed=embed)
 
 def setup(bot):
     bot.add_cog(Characters(bot))

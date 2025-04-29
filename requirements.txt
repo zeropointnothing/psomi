@@ -1,3 +1,4 @@
 py-cord
 aiohttp
 audioop-lts
+rapidfuzz
