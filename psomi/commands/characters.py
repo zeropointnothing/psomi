@@ -1,5 +1,6 @@
 import re
 import discord
+from discord import Option
 from discord.ext import commands
 from rapidfuzz import process, fuzz
 from psomi.utils.bot import PsomiBot
@@ -25,146 +26,193 @@ class Characters(commands.Cog):
                 r'(?::\d+)?'  # optional port
                 r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
+    characters = discord.SlashCommandGroup(
+        name="characters",
+        description="Commands related to modifying or viewing Characters."
+    )
 
-    @commands.command(name="register", description="Create and register a Character with PSOMI.")
-    async def register_command(self, ctx: commands.Context, name: str, prefix: str, avatar: str | None = None):
-        if not re.match(".*text.*", prefix):
-            await ctx.reply("Invalid prefix supplied. Please ensure your prefix follows the `<pfx>:text:<sfx>` format!")
+    @characters.command(name="register", description="Create and register a Character with PSOMI.")
+    async def register_command(
+            self,
+            ctx: discord.ApplicationContext,
+            name: Option(str, "The Character's name.", required=True),
+            brackets: Option(str, "The Character's brackets.", required=True),
+            avatar_file: Option(discord.Attachment, "Upload a file as the avatar.", required=False),
+            avatar_url: Option(str, "Use a URL as the avatar.", required=False)
+    ):
+        if not re.match(".*text.*", brackets):
+            await ctx.respond("Invalid brackets supplied. Please ensure your prefix follows the `<pfx>:text:<sfx>` format!")
             return
 
-        if len(ctx.message.attachments) > 0:
-            avatar = ctx.message.attachments[0].url
+        if avatar_file:
+            avatar = avatar_file.url
+        elif avatar_url:
+            avatar = avatar_url
+        else:
+            avatar = None
 
         if avatar:
             # thanks:
             # https://stackoverflow.com/questions/7160737/how-to-validate-a-url-in-python-malformed-or-not
             if re.match(self.url_check_regex, avatar) is None: # validate url
-                await ctx.reply("Malformed avatar url! Please ensure your arguments are supplied correctly.")
+                await ctx.respond("Malformed avatar url! Please ensure your arguments are supplied correctly.")
                 return
 
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError: # we should add the user if they are not present
-            user = self.bot.database.add_user(str(ctx.message.author.id))
+            user = self.bot.database.add_user(str(ctx.author.id))
         try:
-            self.bot.database.create_character(user, name, prefix, avatar)
+            self.bot.database.create_character(user, name, brackets, avatar)
         except DuplicateError:
-            await ctx.reply("Unable to register Character, as one or more values are already present.\n"
+            await ctx.respond("Unable to register Character, as one or more values are already present.\n"
                             "Make sure both the name and prefix of your Character is unique!")
             return
 
-        await ctx.reply(f"Successfully registered '{name}'!"
-                        f" To use them, type in `{prefix.replace("text", "<your message>")}`!")
+        await ctx.respond(f"Successfully registered '{name}'!"
+                        f" To use them, type in `{brackets.replace("text", "<your message>")}`!")
 
-    @commands.command(name="unregister", description="Unregister (or delete) a Character.")
-    async def unregister_command(self, ctx: commands.Context, name: str):
+    @characters.command(name="unregister", description="Unregister (or delete) a Character.")
+    async def unregister_command(
+            self,
+            ctx: discord.ApplicationContext,
+            name: Option(str, "The name of the Character to unregister.", required=True)):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            await ctx.respond("You don't have any registered Characters! Try again after registering some!")
             return
         try:
             character = self.bot.database.get_character(user, name)
         except NotFoundError:
-            await ctx.reply(f"You don't have a Character under the name '{name}'!")
+            await ctx.respond(f"You don't have a Character under the name '{name}'!")
             return
 
         self.bot.database.delete_character(user, character)
 
-        await ctx.reply(f"Successfully deleted '{character.name}'!")
+        await ctx.respond(f"Successfully deleted '{character.name}'!")
 
-    @commands.command(name="avatar", description="View or update a Character's avatar.")
-    async def avatar_command(self, ctx: commands.Context, name: str, url: str | None = None):
+    @characters.command(name="avatar", description="View or update a Character's avatar.")
+    async def avatar_command(
+            self,
+            ctx: discord.ApplicationContext,
+            name: Option(str, "The name of the Character you wish to update or view.", required=True),
+            avatar_file: Option(discord.Attachment, "Upload a file as the new avatar.", required=False),
+            avatar_url: Option(str, "Use a URL as the new avatar.", required=False)
+    ):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            await ctx.respond("You don't have any registered Characters! Try again after registering some!")
             return
         try:
             character = self.bot.database.get_character(user, name)
         except NotFoundError:
-            await ctx.reply(f"You don't have a Character under the name '{name}'!")
+            await ctx.respond(f"You don't have a Character under the name '{name}'!")
             return
 
-        if len(ctx.message.attachments) > 0:
-            url = ctx.message.attachments[0].url
+        if avatar_file:
+            url = avatar_file.url
+        elif avatar_url:
+            url = avatar_url
+        else:
+            url = None
         if url:
             if re.match(self.url_check_regex, url) is None: # validate url
-                await ctx.reply("Malformed avatar url!")
+                await ctx.respond("Malformed avatar url!")
                 return
 
             self.bot.database.update_character(user, character, "avatar", url)
 
-            await ctx.reply(
+            await ctx.respond(
                 f"Successfully updated the avatar of '{name}'!\n"
                 "(Note, avatars are subject to [Link Rot](https://en.wikipedia.org/wiki/Link_rot), as Discord routinely"
                 " gets rid of unused images! Always keep a copy on one or more devices in case your avatar breaks!)"
             )
         else:
             if character.avatar:
-                await ctx.reply(f"[avatar linkie]({character.avatar})")
+                await ctx.respond(f"[avatar linkie]({character.avatar})")
             else:
-                await ctx.reply(f"'{name}' does not currently have an avatar!")
+                await ctx.respond(f"'{name}' does not currently have an avatar!")
 
-    @commands.command(name="brackets", description="Update a Character's Prefix/Suffix.")
-    async def brackets_command(self, ctx: commands.Context, name: str, brackets: str):
+    @characters.command(name="brackets", description="Update a Character's Prefix/Suffix.")
+    async def brackets_command(
+            self,
+            ctx: discord.ApplicationContext,
+            name: Option(str, "The name of the Character you wish to update.", required=True),
+            brackets: Option(str, "The Character's new brackets.", required=True)
+    ):
         if not re.match(".*text.*", brackets):
-            await ctx.reply(f"The supplied brackets ({brackets}) were invalid. Please ensure they follow the format `<your_prefix>:text:<your_suffix>`!")
+            await ctx.respond(f"The supplied brackets ({brackets}) were invalid. "
+                              f"Please ensure they follow the format `<your_prefix>:text:<your_suffix>`!")
             return
         
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            await ctx.respond("You don't have any registered Characters! Try again after registering some!")
             return
         try:
             character = self.bot.database.get_character(user, name)
         except NotFoundError:
-            await ctx.reply(f"You don't have a Character under the name '{name}'!")
+            await ctx.respond(f"You don't have a Character under the name '{name}'!")
             return
 
         try:
             self.bot.database.update_character(user, character, "prefix", brackets)
         except DuplicateError:
-            in_use_by = [character for group in user.proxy_groups for character in group.characters if character.prefix == brackets][0]
-            await ctx.reply(f"The brackets you supplied ('{brackets}') are already in use by another character ('{in_use_by.name}')!")
+            in_use_by = [
+                character for group in user.proxy_groups
+                for character in group.characters if character.prefix == brackets
+            ][0]
+            await ctx.respond(f"The brackets you supplied ('{brackets}') are already in use by another character"
+                              f" ('{in_use_by.name}')!")
             return
 
-        await ctx.reply(f"Successfully updated the brackets of '{name}' to '{brackets}'!")
+        await ctx.respond(f"Successfully updated the brackets of '{name}' to '{brackets}'!")
 
-    @commands.command(name="rename", description="Rename a Character.")
-    async def rename_command(self, ctx: commands.Context, old_name: str, new_name: str):
+    @characters.command(name="rename", description="Rename a Character.")
+    async def rename_command(
+            self,
+            ctx: discord.ApplicationContext,
+            old_name: Option(str, "The Character's old name (the one you want to change).", required=True),
+            new_name: Option(str, "The Character's new name (what you want to change it to)", required=True)
+    ):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            await ctx.respond("You don't have any registered Characters! Try again after registering some!")
             return
         try:
             character = self.bot.database.get_character(user, old_name)
         except NotFoundError:
-            await ctx.reply(f"You don't have a Character under the name '{old_name}'!")
+            await ctx.respond(f"You don't have a Character under the name '{old_name}'!")
             return
 
         try:
             self.bot.database.update_character(user, character, "name", new_name)
         except DuplicateError:
-            await ctx.reply(f"The name you supplied ('{new_name}') is already in use!")
+            await ctx.respond(f"The name you supplied ('{new_name}') is already in use!")
             return
         
-        await ctx.reply(f"Successfully updated the name of '{old_name}' to '{new_name}'!")
+        await ctx.respond(f"Successfully updated the name of '{old_name}' to '{new_name}'!")
 
-    @commands.command(name="list", description="List all of your registered Characters.")
-    async def list_command(self, ctx: commands.Context, page: int = 1):
+    @characters.command(name="list", description="List all of your registered Characters.")
+    async def list_command(
+            self,
+            ctx: discord.ApplicationContext,
+            page: Option(int, description="What page to show.", default=1)
+    ):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            await ctx.respond("You don't have any registered Characters! Try again after registering some!")
             return
 
         # create the embed
-        characters = sort_by_page([_.characters for _ in user.proxy_groups], page, 2)
+        characters = sort_by_page([_.characters for _ in user.proxy_groups], page, 20)
         if characters["group_num"] == 0:
-            await ctx.reply(f"That's out of bounds! Please choose a number between 0 and {characters["page_total"]}!")
+            await ctx.respond(f"That's out of bounds! Please choose a number between 0 and {characters["page_total"]}!")
             return
 
         embed = discord.Embed(
@@ -185,35 +233,38 @@ class Characters(commands.Cog):
             embed.set_footer(text="More on next page...")
 
         # reply to the user
-        if ctx.message.reference is not None:
-            try:
-                # If the message is a reply, edit instead.
-                referenced_message = ctx.message.reference.cached_message
-                if self.bot.user and referenced_message.author.id != self.bot.user.id:
-                    await ctx.channel.send("I didn't send that message!")
-                    return
+        # if ctx.message.reference is not None:
+        #     try:
+        #         # If the message is a reply, edit instead.
+        #         referenced_message = ctx.message.reference.cached_message
+        #         if self.bot.user and referenced_message.author.id != self.bot.user.id:
+        #             await ctx.respond("I didn't send that message!")
+        #             return
+        #
+        #         await referenced_message.edit(embed=embed)
+        #         await ctx.message.delete()
+        #     except AttributeError:
+        #         await ctx.respond("Unable to edit. Message was not cached!")
+        #         return
+        #     except discord.errors.NotFound: # The message got deleted from something else, do nothing.
+        #         pass
+        await ctx.respond(embed=embed)
 
-                await referenced_message.edit(embed=embed)
-                await ctx.message.delete()
-            except AttributeError:
-                await ctx.channel.send("Unable to edit. Message was not cached!")
-                return
-            except discord.errors.NotFound: # The message got deleted from something else, do nothing.
-                pass
-        else:
-            await ctx.reply(embed=embed)
-
-    @commands.command(name="find", description="Find a Character via Fuzzy Searching.")
-    async def find_command(self, ctx: commands.Context, query: str):
+    @characters.command(name="find", description="Find a Character via Fuzzy Searching.")
+    async def find_command(
+            self,
+            ctx: discord.ApplicationContext,
+            query: Option(str, "The character(s) to search for.", required=True)
+    ):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You don't have any registered Characters! Try again after registering some!")
+            await ctx.respond("You don't have any registered Characters! Try again after registering some!")
             return
 
         embed = discord.Embed(title=f"Search Results for '{query}':")
-        embed.set_footer(text="PSOMI uses Fuzzy searching to find characters. Try to your searches specific. "
-                              "It may get confused!")
+        embed.set_footer(text="PSOMI uses Fuzzy searching to find characters. Try to make your searches specific. "
+                              "Otherwise, it may get confused!")
 
         for i, result in enumerate(user.get_character_by_search(query, limit=10)):
             embed.add_field(
@@ -224,7 +275,7 @@ class Characters(commands.Cog):
                       (f"Avatar: [linkie]({result[0].avatar})" if result[0].avatar else "Avatar: None")
             )
 
-        await ctx.reply(embed=embed)
+        await ctx.respond(embed=embed)
 
 def setup(bot):
     bot.add_cog(Characters(bot))

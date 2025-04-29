@@ -1,6 +1,7 @@
 from asyncio import timeout
 
 import discord
+from discord import Option
 from discord.ext import commands
 from psomi.utils.bot import PsomiBot
 from psomi.errors import NotFoundError, DuplicateError
@@ -11,36 +12,48 @@ class Grouping(commands.Cog):
         self.bot: PsomiBot = bot
         self.description = "Commands related to modifying or viewing ProxyGroups."
 
-    @commands.command(name="create", description="Create a new ProxyGroup")
-    async def create_command(self, ctx: commands.Context, name: str):
+    grouping = discord.SlashCommandGroup(
+        name="grouping", description="Commands related to modifying or viewing ProxyGroups."
+    )
+
+    @grouping.command(name="create", description="Create a new ProxyGroup")
+    async def create_command(
+            self,
+            ctx: discord.ApplicationContext,
+            title: Option(str, description="The ProxyGroup's title.", required=True)
+    ):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError: # we should add the user if they are not present
-            user = self.bot.database.add_user(str(ctx.message.author.id))
+            user = self.bot.database.add_user(str(ctx.author.id))
         
         try:
-            self.bot.database.create_proxygroup(user, name)
+            self.bot.database.create_proxygroup(user, title)
         except DuplicateError:
-            await ctx.reply("Unable to create ProxyGroup, as one with that name already exists.")
+            await ctx.respond("Unable to create ProxyGroup, as one with that name already exists.")
             return
         
-        await ctx.reply(f"Successfully created the '{name}' ProxyGroup!")
+        await ctx.respond(f"Successfully created the '{title}' ProxyGroup!")
 
-    @commands.command(name="delete", description="Delete an existing ProxyGroup.")
-    async def delete_command(self, ctx: commands.Context, title: str):
+    @grouping.command(name="delete", description="Delete an existing ProxyGroup.")
+    async def delete_command(
+            self,
+            ctx: discord.ApplicationContext,
+            title: Option(str, "The title of the ProxyGroup you wish to delete.", required=True)
+    ):
         try:
-            user = self.bot.database.get_user(str(ctx.message.author.id))
+            user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
-            await ctx.reply("You do not currently have any created ProxyGroups! Try creating one first!")
+            await ctx.respond("You do not currently have any created ProxyGroups! Try creating one first!")
             return
 
         try:
             group = self.bot.database.get_proxygroup(user, title)
         except NotFoundError:
-            await ctx.reply(f"You do not have a ProxyGroup with the title '{title}'!")
+            await ctx.respond(f"You do not have a ProxyGroup with the title '{title}'!")
             return
 
-        await ctx.reply(f"Are you sure you'd like to delete this ProxyGroup? ('{title}')\n"
+        await ctx.respond(f"Are you sure you'd like to delete this ProxyGroup? ('{title}')\n"
                         "This action is irreversible! All Characters within this group will become uncategorized!\n"
                         "Reply with 'I am sure!' to proceed, or 'cancel' to abort (or wait 20 seconds).")
 
