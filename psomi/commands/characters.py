@@ -66,7 +66,7 @@ class ListView(discord.ui.View):
         # self.current_page %=
         bot = cast(PsomiBot, interaction.client)
         try:
-            embed = await self.construct_embed(bot)
+            embed = await self.construct_embed()
         except OutOfBoundsError:
             await interaction.response.send_message("There are no more pages!", ephemeral=True)
             self.current_page += 1
@@ -109,7 +109,7 @@ class ListView(discord.ui.View):
         # self.current_page %=
         bot = cast(PsomiBot, interaction.client)
         try:
-            embed = await self.construct_embed(bot)
+            embed = await self.construct_embed()
         except OutOfBoundsError:
             await interaction.response.send_message("There are no more pages!", ephemeral=True)
             self.current_page -= 1
