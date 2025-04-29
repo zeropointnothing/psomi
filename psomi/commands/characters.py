@@ -6,7 +6,7 @@ from discord import Option
 from discord.ext import commands
 from rapidfuzz import process, fuzz
 from psomi.utils.bot import PsomiBot
-from psomi.utils.data import sort_by_page
+from psomi.utils.data import sort_by_page, User
 from psomi.errors import NotFoundError, DuplicateError, OutOfBoundsError
 
 
@@ -19,8 +19,9 @@ def fuzzy_search(choices: list, query: str, limit: int = 10) -> list[dict]:
 
 
 class ListView(discord.ui.View):
-    def __init__(self, page: int, author: discord.User, *args, **kwargs):
+    def __init__(self, page: int, user: User, author: discord.User, *args, **kwargs):
         self.current_page = page
+        self.user = user
         self.author = author
 
         super().__init__(*args, **kwargs)
@@ -28,14 +29,12 @@ class ListView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction):
         return interaction.user.id == self.author.id
 
-    async def construct_embed(self, bot: PsomiBot):
+    async def construct_embed(self):
         if self.current_page < 1:
             raise OutOfBoundsError("Cannot have a page number lower than 1!")
 
-        user = bot.database.get_user(str(self.author.id))
-
         # create the embed
-        characters = sort_by_page([_.characters for _ in user.proxy_groups], self.current_page, 20)
+        characters = sort_by_page([_.characters for _ in self.user.proxy_groups], self.current_page, 20)
         if self.current_page > characters["page_total"]:
             raise OutOfBoundsError(f"Cannot have a page number higher than {characters["page_total"]}!")
         elif characters["group_num"] == 0:
@@ -44,7 +43,7 @@ class ListView(discord.ui.View):
 
         embed = discord.Embed(
             title=f"Registered Characters [{self.current_page}/{characters["page_total"]}]"
-                  f"({user.proxy_groups[characters["group_num"]-1].title}):"
+                  f"({self.user.proxy_groups[characters["group_num"]-1].title}):"
         )
 
         for i, character in enumerate(characters["page"]):
@@ -340,6 +339,7 @@ class Characters(commands.Cog):
             embed=embed,
             view=ListView(
                 page=page,
+                user=user,
                 author=ctx.author,
                 timeout=120
             )
