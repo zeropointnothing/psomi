@@ -1,11 +1,14 @@
 import re
+from typing import cast
+
 import discord
 from discord import Option
 from discord.ext import commands
 from rapidfuzz import process, fuzz
 from psomi.utils.bot import PsomiBot
 from psomi.utils.data import sort_by_page
-from psomi.errors import NotFoundError, DuplicateError
+from psomi.errors import NotFoundError, DuplicateError, OutOfBoundsError
+
 
 def fuzzy_search(choices: list, query: str, limit: int = 10) -> list[dict]:
     # noinspection PyTypeChecker
@@ -13,6 +16,107 @@ def fuzzy_search(choices: list, query: str, limit: int = 10) -> list[dict]:
     matches.sort(key=lambda x: (fuzz.ratio(query, x[0]) + fuzz.partial_ratio(query, x[0])), reverse=True)
 
     return [{"item": match[0], "faith": match[1]} for match in matches if match[1] >= 60]
+
+
+class ListView(discord.ui.View):
+    def __init__(self, page: int, author: discord.User, *args, **kwargs):
+        self.current_page = page
+        self.author = author
+
+        super().__init__(*args, **kwargs)
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        return interaction.user.id == self.author.id
+
+    async def construct_embed(self, bot: PsomiBot):
+        if self.current_page < 1:
+            raise OutOfBoundsError("Cannot have a page number lower than 1!")
+
+        user = bot.database.get_user(str(self.author.id))
+
+        # create the embed
+        characters = sort_by_page([_.characters for _ in user.proxy_groups], self.current_page, 20)
+        if self.current_page > characters["page_total"]:
+            raise OutOfBoundsError(f"Cannot have a page number higher than {characters["page_total"]}!")
+        elif characters["group_num"] == 0:
+            raise OutOfBoundsError("The requested page was out of bounds!")
+            # await ctx.respond(f"That's out of bounds! Please choose a number between 0 and {characters["page_total"]}!")
+
+        embed = discord.Embed(
+            title=f"Registered Characters [{self.current_page}/{characters["page_total"]}]"
+                  f"({user.proxy_groups[characters["group_num"]-1].title}):"
+        )
+
+        for i, character in enumerate(characters["page"]):
+            embed.add_field(
+                name=character.name,
+                value=f"Prefix: `{character.prefix}`\n"
+                      + (f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None")
+            )
+
+        if not characters["page"]:
+            embed.set_footer(text="Nothing here...")
+        elif self.current_page < characters["page_total"]:
+            embed.set_footer(text="More on next page...")
+
+        return embed
+
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.primary)
+    async def previous_callback(self, button: discord.Button, interaction: discord.Interaction):
+        self.current_page -= 1
+        # self.current_page %=
+        bot = cast(PsomiBot, interaction.client)
+        try:
+            embed = await self.construct_embed(bot)
+        except OutOfBoundsError:
+            await interaction.response.send_message("There are no more pages!", ephemeral=True)
+            self.current_page += 1
+            return        # await self.message.edit(embed=embed)
+        await interaction.response.edit_message(embed=embed)
+
+
+    # @discord.ui.button(label="🔢", style=discord.ButtonStyle.secondary)
+    # async def jump_to(self, button: discord.Button, interaction: discord.Interaction):
+    #     bot = cast(PsomiBot, interaction.client)
+    #
+    #     await interaction.channel.send("Reply with the page number you wish to jump to within ten seconds.", ephemeral=True)
+    #     await interaction.response.defer()
+    #     try:
+    #         # destructive action, we should wait for confirmation first.
+    #         result: discord.Message = await bot.wait_for(
+    #             "message",
+    #             check=lambda x: x.channel.id == interaction.channel.id
+    #             and x.author.id == self.author.id
+    #             and x.content.isdigit(),
+    #             timeout=20.0
+    #         )
+    #     except TimeoutError:
+    #         await interaction.channel.send("Aborting due to lack of accepted response...")
+    #         return
+    #
+    #     try:
+    #         self.current_page = int(result.content)
+    #         embed = await self.construct_embed(bot)
+    #     except OutOfBoundsError:
+    #         await interaction.channel.send("Invalid page number!", ephemeral=True)
+    #         return
+    #     # await self.message.edit(embed=embed)
+    #     await interaction.followup.edit_message(embed=embed)
+    #     # await interaction.response.edit_message(embed=embed)
+
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.primary)
+    async def next_callback(self, button: discord.Button, interaction: discord.Interaction):
+        self.current_page += 1
+        # self.current_page %=
+        bot = cast(PsomiBot, interaction.client)
+        try:
+            embed = await self.construct_embed(bot)
+        except OutOfBoundsError:
+            await interaction.response.send_message("There are no more pages!", ephemeral=True)
+            self.current_page -= 1
+            return
+        # await self.message.edit(embed=embed)
+        await interaction.response.edit_message(embed=embed)
 
 class Characters(commands.Cog):
     def __init__(self, bot):
@@ -232,23 +336,14 @@ class Characters(commands.Cog):
         elif page < characters["page_total"]:
             embed.set_footer(text="More on next page...")
 
-        # reply to the user
-        # if ctx.message.reference is not None:
-        #     try:
-        #         # If the message is a reply, edit instead.
-        #         referenced_message = ctx.message.reference.cached_message
-        #         if self.bot.user and referenced_message.author.id != self.bot.user.id:
-        #             await ctx.respond("I didn't send that message!")
-        #             return
-        #
-        #         await referenced_message.edit(embed=embed)
-        #         await ctx.message.delete()
-        #     except AttributeError:
-        #         await ctx.respond("Unable to edit. Message was not cached!")
-        #         return
-        #     except discord.errors.NotFound: # The message got deleted from something else, do nothing.
-        #         pass
-        await ctx.respond(embed=embed)
+        await ctx.respond(
+            embed=embed,
+            view=ListView(
+                page=page,
+                author=ctx.author,
+                timeout=120
+            )
+        )
 
     @characters.command(name="find", description="Find a Character via Fuzzy Searching.")
     async def find_command(
