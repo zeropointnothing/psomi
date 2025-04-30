@@ -104,5 +104,36 @@ class Grouping(commands.Cog):
 
         await ctx.respond(f"Successfully renamed the '{old_title}' ProxyGroup to '{new_title}'!")
 
+    @grouping.command(name="add", description="Add a Character to a ProxyGroup.")
+    async def add_command(
+            self,
+            ctx: discord.ApplicationContext,
+            group_name: Option(str, "The name of the ProxyGroup you wish to add to.", required=True),
+            character_name: Option(str, "The name of the Character you wish to add.", required=True)
+    ):
+        try:
+            user = self.bot.database.get_user(str(ctx.author.id))
+        except NotFoundError:
+            await ctx.respond("You need to have Characters first!")
+            return
+        try:
+            group = self.bot.database.get_proxygroup(user, group_name)
+        except NotFoundError:
+            await ctx.respond(f"You do not have a ProxyGroup with the title '{group_name}'!")
+            return
+        try:
+            character = self.bot.database.get_character(user, character_name)
+        except NotFoundError:
+            await ctx.respond(f"You don't have a Character under the name '{character_name}'!")
+            return
+
+        if character.proxygroup_name == group_name:
+            await ctx.respond(f"'{character_name}' is already present in this group!")
+            return
+
+        self.bot.database.group_character(user, character, group)
+
+        await ctx.respond(f"Successfully placed '{character_name}' into the '{group_name}' ProxyGroup!")
+
 def setup(bot):
     bot.add_cog(Grouping(bot))
