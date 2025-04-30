@@ -4,19 +4,9 @@ from typing import cast
 import discord
 from discord import Option
 from discord.ext import commands
-from rapidfuzz import process, fuzz
 from psomi.utils.bot import PsomiBot
 from psomi.utils.data import sort_by_page, User
 from psomi.errors import NotFoundError, DuplicateError, OutOfBoundsError
-
-
-def fuzzy_search(choices: list, query: str, limit: int = 10) -> list[dict]:
-    # noinspection PyTypeChecker
-    matches = process.extract(query, choices, scorer=fuzz.partial_ratio, limit=limit)
-    matches.sort(key=lambda x: (fuzz.ratio(query, x[0]) + fuzz.partial_ratio(query, x[0])), reverse=True)
-
-    return [{"item": match[0], "faith": match[1]} for match in matches if match[1] >= 60]
-
 
 class ListView(discord.ui.View):
     def __init__(self, page: int, user: User, author: discord.User, *args, **kwargs):
