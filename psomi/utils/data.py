@@ -444,6 +444,7 @@ class Data:
         :rtype: ProxyGroup
 
         :raises NotFoundError: If either that User does not exist or no such ProxyGroup could be found.
+        :raises DuplicateError: If that User already has a ProxyGroup with that name.
         """
 
         with sqlite3.connect(self.__data_path) as conn:
@@ -452,10 +453,13 @@ class Data:
             db_user = db_get_user_row(cursor, user.uid)
             db_group = db_get_group_row(cursor, db_user["tid"], proxy_group.title)
 
-            cursor.execute(
-                "UPDATE proxy_groups SET title=? WHERE tid=?",
-                (new_title,db_group["tid"])
-            )
+            try:
+                cursor.execute(
+                    "UPDATE proxy_groups SET title=? WHERE tid=?",
+                    (new_title,db_group["tid"])
+                )
+            except sqlite3.IntegrityError as e:
+                raise DuplicateError(f"Duplicate entry '{new_title}' for UUID: '{user.uid}'!") from e
 
         return ProxyGroup(new_title, db_group["tid"], proxy_group.characters)
 
