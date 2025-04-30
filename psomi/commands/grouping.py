@@ -77,5 +77,32 @@ class Grouping(commands.Cog):
         else:
             await result.reply("Canceled!")
 
+    @grouping.command(name="rename", description="Update a ProxyGroup's title.")
+    async def rename_command(
+            self,
+            ctx: discord.ApplicationContext,
+            old_title: Option(str, "The title of the ProxyGroup you wish to update.", required=True),
+            new_title: Option(str, "The title you wish to update it to.", required=True)
+    ):
+        try:
+            user = self.bot.database.get_user(str(ctx.author.id))
+        except NotFoundError:
+            await ctx.respond("You do not currently have any created ProxyGroups! Try creating one first!")
+            return
+
+        try:
+            group = self.bot.database.get_proxygroup(user, old_title)
+        except NotFoundError:
+            await ctx.respond(f"You do not have a ProxyGroup with the title '{old_title}'!")
+            return
+
+        try:
+            self.bot.database.retitle_proxygroup(user, group, new_title)
+        except DuplicateError:
+            await ctx.respond(f"The title you supplied ('{new_title}') is already in use!")
+            return
+
+        await ctx.respond(f"Successfully renamed the '{old_title}' ProxyGroup to '{new_title}'!")
+
 def setup(bot):
     bot.add_cog(Grouping(bot))
