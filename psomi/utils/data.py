@@ -127,7 +127,7 @@ class User:
         return [i for si in self.__proxy_groups for i in si]
 
     def get_character_by_search(self, query: str, limit: int = 10) -> list[tuple[Character, int]]:
-        characters = self.characters_flattened[:limit]
+        characters = self.characters_flattened
         # noinspection PyTypeChecker
         matches = process.extract( # rank by character name
             query, [_.name for _ in characters],
@@ -139,7 +139,7 @@ class User:
         return [
             (characters[match[2]] ,match[1]) # process.extract also includes the original index
             for i, match in enumerate(matches) if match[1] >= 60
-        ]
+        ][:limit]
 
 def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
     """
