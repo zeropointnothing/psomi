@@ -111,7 +111,10 @@ class ListView(discord.ui.View):
         for item in self.children:
             item.disabled = True
             # self.remove_item(item)
-        await self.parent.edit(content="This view has timed out.", view=self)
+        try:
+            await self.parent.edit(content="This view has timed out.", view=self)
+        except discord.errors.NotFound: # message was likely deleted, no need to do anything
+            pass
 
 class Characters(commands.Cog):
     def __init__(self, bot):
