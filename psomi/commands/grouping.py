@@ -4,6 +4,8 @@ import discord
 from discord import Option
 from discord.ext import commands
 from psomi.utils.bot import PsomiBot
+from psomi.utils.data import sort_by_page
+from psomi.utils.views import ProxyGroupListView
 from psomi.errors import NotFoundError, DuplicateError
 
 
@@ -160,6 +162,49 @@ class Grouping(commands.Cog):
 
         await ctx.respond(f"Successfully removed '{character_name}' from their current ProxyGroup "
                           f"('{character.proxygroup_name}')!")
+
+    @grouping.command(name="list", description="List all of your created ProxyGroups.")
+    async def list_command(
+            self,
+            ctx: discord.ApplicationContext,
+            page: Option(int, description="What page to show.", default=1)
+    ):
+        try:
+            user = self.bot.database.get_user(str(ctx.author.id))
+        except NotFoundError:
+            await ctx.respond("You don't have any created ProxyGroups! Try again after creating some!")
+            return
+
+        # create the embed
+        groups = sort_by_page([user.proxy_groups], page, 20)
+        if groups["group_num"] == 0:
+            await ctx.respond(f"That's out of bounds! Please choose a number between 0 and {groups["page_total"]}!")
+            return
+
+        embed = discord.Embed(
+            title=f"Created ProxyGroups [{page}/{groups["page_total"]}]"
+        )
+
+        for i, proxygroup in enumerate(groups["page"]):
+            embed.add_field(
+                name=proxygroup.title,
+                value=f"Character Count: {len(proxygroup.characters)}"
+            )
+
+        if not groups["page"]:
+            embed.set_footer(text="Nothing here...")
+        elif page < groups["page_total"]:
+            embed.set_footer(text="More on next page...")
+
+        await ctx.respond(
+            embed=embed,
+            view=ProxyGroupListView(
+                page=page,
+                user=user,
+                author=ctx.author,
+                timeout=120
+            )
+        )
 
 def setup(bot):
     bot.add_cog(Grouping(bot))
