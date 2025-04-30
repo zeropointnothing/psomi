@@ -135,5 +135,31 @@ class Grouping(commands.Cog):
 
         await ctx.respond(f"Successfully placed '{character_name}' into the '{group_name}' ProxyGroup!")
 
+    @grouping.command(name="remove", description="Remove a Character from their current ProxyGroup.")
+    async def remove_command(
+            self,
+            ctx: discord.ApplicationContext,
+            character_name: Option(str, "The name of the Character you wish to remove.", required=True)
+    ):
+        try:
+            user = self.bot.database.get_user(str(ctx.author.id))
+        except NotFoundError:
+            await ctx.respond("You need to have Characters first!")
+            return
+        try:
+            character = self.bot.database.get_character(user, character_name)
+        except NotFoundError:
+            await ctx.respond(f"You don't have a Character under the name '{character_name}'!")
+            return
+
+        if character.proxygroup_name is None:
+            await ctx.respond(f"'{character_name}' isn't in any ProxyGroups!")
+            return
+
+        self.bot.database.ungroup_character(user, character)
+
+        await ctx.respond(f"Successfully removed '{character_name}' from their current ProxyGroup "
+                          f"('{character.proxygroup_name}')!")
+
 def setup(bot):
     bot.add_cog(Grouping(bot))
