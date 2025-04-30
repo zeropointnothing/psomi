@@ -117,6 +117,12 @@ class ListView(discord.ui.View):
         # await self.message.edit(embed=embed)
         await interaction.response.edit_message(embed=embed)
 
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+            # self.remove_item(item)
+        await self.parent.edit(content="This view has timed out.", view=self)
+
 class Characters(commands.Cog):
     def __init__(self, bot):
         self.bot: PsomiBot = bot
