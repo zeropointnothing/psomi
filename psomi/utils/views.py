@@ -6,6 +6,7 @@ from psomi.utils.data import User, sort_by_page
 class CharacterListView(discord.ui.View):
     def __init__(self, page: int, user: User, author: discord.User, *args, **kwargs):
         self.current_page = page
+        self.max_page = sort_by_page([_.characters for _ in user.proxy_groups], 1, 20)["page_total"]
         self.user = user
         self.author = author
 
@@ -20,14 +21,13 @@ class CharacterListView(discord.ui.View):
 
         # create the embed
         characters = sort_by_page([_.characters for _ in self.user.proxy_groups], self.current_page, 20)
-        if self.current_page > characters["page_total"]:
-            raise OutOfBoundsError(f"Cannot have a page number higher than {characters["page_total"]}!")
+        if self.current_page > self.max_page:
+            raise OutOfBoundsError(f"Cannot have a page number higher than {self.max_page}!")
         elif characters["group_num"] == 0:
             raise OutOfBoundsError("The requested page was out of bounds!")
-            # await ctx.respond(f"That's out of bounds! Please choose a number between 0 and {characters["page_total"]}!")
 
         embed = discord.Embed(
-            title=f"Registered Characters [{self.current_page}/{characters["page_total"]}]"
+            title=f"Registered Characters [{self.current_page}/{self.max_page}]"
                   f"({self.user.proxy_groups[characters["group_num"]-1].title}):"
         )
 
@@ -45,6 +45,12 @@ class CharacterListView(discord.ui.View):
             embed.set_footer(text="More on next page...")
 
         return embed
+
+    @discord.ui.button(label="⏮️", style=discord.ButtonStyle.green)
+    async def first_callback(self, button: discord.Button, interaction: discord.Interaction):
+        self.current_page = 1
+        embed = await self.construct_embed()
+        await interaction.response.edit_message(embed=embed)
 
     @discord.ui.button(label="◀️", style=discord.ButtonStyle.primary)
     async def previous_callback(self, button: discord.Button, interaction: discord.Interaction):
@@ -99,6 +105,12 @@ class CharacterListView(discord.ui.View):
             self.current_page -= 1
             return
         # await self.message.edit(embed=embed)
+        await interaction.response.edit_message(embed=embed)
+
+    @discord.ui.button(label="⏭️", style=discord.ButtonStyle.green)
+    async def last_callback(self, button: discord.Button, interaction: discord.Interaction):
+        self.current_page = self.max_page
+        embed = await self.construct_embed()
         await interaction.response.edit_message(embed=embed)
 
     async def on_timeout(self):
