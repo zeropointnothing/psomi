@@ -62,7 +62,7 @@ async def on_message(message: discord.Message):
 
 
     async with aiohttp.ClientSession() as session:
-        for character in parsed_message:
+        for i, character in enumerate(parsed_message):
             character_webhook = discord.Webhook.from_url(psomi_webhook_url, session=session)
             character_content: str = '\n'.join(character["message"])
             prefix, suffix = character["character"].prefix.split("text")
@@ -71,6 +71,34 @@ async def on_message(message: discord.Message):
                 character_content = character_content.removeprefix(prefix)
             if suffix:
                 character_content = character_content.removesuffix(suffix)
+
+            # construct reference
+            if i == 0 and message.reference:
+                try:
+                    referenced_message = message.reference.cached_message
+                    replied_user = referenced_message.author
+                    referenced_content = referenced_message.content
+                    referenced_content = referenced_content.split("\n")
+
+                    # Get rid of the last reply to make it look cleaner.
+                    for i, _ in enumerate(referenced_content):
+                        if _.startswith("> "):
+                            referenced_content.remove(_)
+
+                    replied_content = " ".join(referenced_content)
+                    replied_content = replied_content.replace(
+                        "\n", " "
+                    )
+                    # print(referenced_message)
+                    channel_id = referenced_message.channel.id
+                    message_id = referenced_message.id
+
+                    character_content = (
+                        f"> {replied_content}\n{replied_user.mention} - [Jump](<https://discord.com/channels/@me/{channel_id}/{message_id}>)\n"
+                        + character_content
+                    )
+                except AttributeError:
+                    pass
 
             await character_webhook.send(
                 character_content,
