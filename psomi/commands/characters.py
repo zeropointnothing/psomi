@@ -37,7 +37,7 @@ class Characters(commands.Cog):
             avatar_url: Option(str, "Use a URL as the avatar.", required=False)
     ):
         if not re.match(".*text.*", brackets):
-            await ctx.respond("Invalid brackets supplied. Please ensure your prefix follows the `<pfx>:text:<sfx>` format!")
+            await ctx.respond("Invalid brackets supplied. Please ensure your brackets follow the `<pfx>:text:<sfx>` format!")
             return
 
         if avatar_file:
@@ -62,7 +62,7 @@ class Characters(commands.Cog):
             self.bot.database.create_character(user, name, brackets, avatar)
         except DuplicateError:
             await ctx.respond("Unable to register Character, as one or more values are already present.\n"
-                            "Make sure both the name and prefix of your Character is unique!")
+                            "Make sure both the name and brackets of your Character is unique!")
             return
 
         await ctx.respond(f"Successfully registered '{name}'!"
@@ -219,7 +219,7 @@ class Characters(commands.Cog):
         for i, character in enumerate(characters["page"]):
             embed.add_field(
                 name=character.name,
-                value=f"Prefix: `{character.prefix}`\n"
+                value=f"Brackets: `{character.prefix}`\n"
                       f"Message Count: {character.proxy_count}\n"
                       + (f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None")
             )
