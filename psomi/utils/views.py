@@ -35,6 +35,7 @@ class CharacterListView(discord.ui.View):
             embed.add_field(
                 name=character.name,
                 value=f"Prefix: `{character.prefix}`\n"
+                      f"Message Count: {character.proxy_count}\n"
                       + (f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None")
             )
 

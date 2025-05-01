@@ -20,6 +20,7 @@ class Character:
     # Optional
     proxygroup_name: str | None = None
     avatar: str | None = None
+    proxy_count: int = 0
 
 
 class ProxyGroup:
@@ -303,6 +304,7 @@ class Data:
                     name TEXT NOT NULL,
                     prefix TEXT NOT NULL,
                     avatar TEXT,
+                    proxy_count INT NOT NULL DEFAULT 0
                     FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid) ON DELETE SET NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid),
                     UNIQUE (user_tid, name),
@@ -341,7 +343,9 @@ class Data:
                 db_characters = cursor.execute("SELECT * FROM characters WHERE proxygroup_tid=?",
                                             (group["tid"],)).fetchall()
                 db_characters = [
-                    Character(_["name"], _["prefix"], group["title"], _["avatar"]) for _ in db_characters
+                    Character(
+                        _["name"], _["prefix"], group["title"], _["avatar"], _["proxy_count"]
+                    ) for _ in db_characters
                 ]  # reconstruction
 
                 final.append(ProxyGroup(group["title"], group["tid"], db_characters))
@@ -356,7 +360,7 @@ class Data:
                 ProxyGroup(
                     "Uncategorized",
                     None,
-                    [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in db_ungrouped]
+                    [Character(_["name"], _["prefix"], None, _["avatar"], _["proxy_count"]) for _ in db_ungrouped]
                 )
             )
 
@@ -422,7 +426,9 @@ class Data:
             return ProxyGroup(
                 title,
                 db_group["tid"],
-                [Character(_["name"], _["prefix"], db_group["title"], _["avatar"]) for _ in db_characters]
+                [Character(
+                    _["name"], _["prefix"], db_group["title"], _["avatar"], _["proxy_count"]
+                ) for _ in db_characters]
             )
 
             # print(user)
@@ -550,7 +556,7 @@ class Data:
             return ProxyGroup(
                 "Uncategorized",
                 None,
-                [Character(_["name"], _["prefix"], None, _["avatar"]) for _ in db_characters]
+                [Character(_["name"], _["prefix"], None, _["avatar"], _["proxy_count"]) for _ in db_characters]
             )
 
     @enforce_annotations
@@ -584,7 +590,8 @@ class Data:
                 db_character["name"],
                 db_character["prefix"],
                 character_group,
-                db_character["avatar"]
+                db_character["avatar"],
+                db_character["proxy_count"]
             )
 
     @enforce_annotations
@@ -686,7 +693,8 @@ class Data:
                 character.name,
                 character.prefix,
                 db_group["title"],
-                character.avatar
+                character.avatar,
+                character.proxy_count
             )
 
 
@@ -721,7 +729,8 @@ class Data:
                 character.name,
                 character.prefix,
                 None,
-                character.avatar
+                character.avatar,
+                character.proxy_count
             )
 
     @enforce_annotations
@@ -781,5 +790,6 @@ class Data:
                 db_character["name"],
                 db_character["prefix"],
                 character.proxygroup_name, # except for the name, since that can't be changed here
-                db_character["avatar"]
+                db_character["avatar"],
+                db_character["proxy_count"]
             )

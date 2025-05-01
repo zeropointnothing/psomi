@@ -220,6 +220,7 @@ class Characters(commands.Cog):
             embed.add_field(
                 name=character.name,
                 value=f"Prefix: `{character.prefix}`\n"
+                      f"Message Count: {character.proxy_count}\n"
                       + (f"Avatar: [linkie]({character.avatar})" if character.avatar else "Avatar: None")
             )
 
@@ -258,6 +259,7 @@ class Characters(commands.Cog):
             embed.add_field(
                 name=result[0].name,
                 value=f"Faith: {round(result[1], 2)}\n"
+                      f"Message Count: {result[0].proxy_count}\n"
                       f"ProxyGroup: {result[0].proxygroup_name}\n"
                       f"Brackets: {result[0].prefix}\n" +
                       (f"Avatar: [linkie]({result[0].avatar})" if result[0].avatar else "Avatar: None")

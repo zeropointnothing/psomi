@@ -48,6 +48,19 @@ async def on_message(message: discord.Message):
     psomi_webhook_url = f"https://discord.com/api/webhooks/{psomi_webhook_id}/{psomi_webhook_token}"
 
     parsed_message = parse_message(user, message.content)
+
+    # do on_message based character updates
+    for character in parsed_message:
+        # get the updated Character class...
+        updated_character = bot.database.update_character(
+            user, character["character"], "proxy_count", character["character"].proxy_count + 1
+        )
+        # then update it across the entire list.
+        for i, _ in enumerate(parsed_message):
+            if _["character"].name == updated_character.name:
+                parsed_message[i] = {"character": updated_character, "message": _["message"]}
+
+
     async with aiohttp.ClientSession() as session:
         for character in parsed_message:
             character_webhook = discord.Webhook.from_url(psomi_webhook_url, session=session)
