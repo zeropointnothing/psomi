@@ -304,7 +304,7 @@ class Data:
                     name TEXT NOT NULL,
                     prefix TEXT NOT NULL,
                     avatar TEXT,
-                    proxy_count INT NOT NULL DEFAULT 0
+                    proxy_count INT NOT NULL DEFAULT 0,
                     FOREIGN KEY (proxygroup_tid) REFERENCES proxy_groups(tid) ON DELETE SET NULL,
                     FOREIGN KEY (user_tid) REFERENCES users(tid),
                     UNIQUE (user_tid, name),
