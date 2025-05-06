@@ -7,6 +7,7 @@ from psomi.utils.bot import PsomiBot
 from psomi.utils.data import sort_by_page
 from psomi.utils.views import ProxyGroupListView
 from psomi.errors import NotFoundError, DuplicateError
+from psomi.utils.autocomplete import pgp_name_autocomplete, chr_name_autocomplete
 
 
 class Grouping(commands.Cog):
@@ -41,7 +42,12 @@ class Grouping(commands.Cog):
     async def delete_command(
             self,
             ctx: discord.ApplicationContext,
-            title: Option(str, "The title of the ProxyGroup you wish to delete.", required=True)
+            title: Option(
+                str,
+                "The title of the ProxyGroup you wish to delete.",
+                required=True,
+                autocomplete=pgp_name_autocomplete
+            )
     ):
         try:
             user = self.bot.database.get_user(str(ctx.author.id))
@@ -83,7 +89,12 @@ class Grouping(commands.Cog):
     async def rename_command(
             self,
             ctx: discord.ApplicationContext,
-            old_title: Option(str, "The title of the ProxyGroup you wish to update.", required=True),
+            old_title: Option(
+                str,
+                "The title of the ProxyGroup you wish to update.",
+                required=True,
+                autocomplete=pgp_name_autocomplete
+            ),
             new_title: Option(str, "The title you wish to update it to.", required=True)
     ):
         try:
@@ -110,8 +121,18 @@ class Grouping(commands.Cog):
     async def add_command(
             self,
             ctx: discord.ApplicationContext,
-            group_name: Option(str, "The name of the ProxyGroup you wish to add to.", required=True),
-            character_name: Option(str, "The name of the Character you wish to add.", required=True)
+            group_name: Option(
+                str,
+                "The name of the ProxyGroup you wish to add to.",
+                required=True,
+                autocomplete=pgp_name_autocomplete
+            ),
+            character_name: Option(
+                str,
+                "The name of the Character you wish to add.",
+                required=True,
+                autocomplete=chr_name_autocomplete
+            )
     ):
         try:
             user = self.bot.database.get_user(str(ctx.author.id))
@@ -141,7 +162,12 @@ class Grouping(commands.Cog):
     async def remove_command(
             self,
             ctx: discord.ApplicationContext,
-            character_name: Option(str, "The name of the Character you wish to remove.", required=True)
+            character_name: Option(
+                str,
+                "The name of the Character you wish to remove.",
+                required=True,
+                autocomplete=chr_name_autocomplete
+            )
     ):
         try:
             user = self.bot.database.get_user(str(ctx.author.id))
