@@ -110,7 +110,7 @@ async def on_message(message: discord.Message):
                 username=character["character"].name,
                 avatar_url=character["character"].avatar if character["character"].avatar else discord.MISSING
             )
-            await asyncio.sleep(0.06)
+            await asyncio.sleep(0.2)
 
     if parsed_message:
         try:
