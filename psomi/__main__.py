@@ -12,6 +12,11 @@ bot = PsomiBot(command_prefix="p!", db_path="database.db", intents=intents)
 
 @bot.event
 async def on_ready():
+    print("Performing initial stress-test...")
+    result = bot.preform_stress_test()
+    print(f"Finished user bulk-test in: {result["user_time"]} seconds ({result["user_count"]} constructed)!")
+    print(f"Finished mass bulk-test in: {result["mass_time"]} seconds ({result["mass_count"]} constructed)!")
+
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.watching,
