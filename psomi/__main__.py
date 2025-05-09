@@ -34,9 +34,7 @@ async def on_ready():
 
 @bot.event
 async def on_raw_reaction_add(payload: RawReactionActionEvent):
-    print("REACTION")
     if str(payload.emoji) == "📝":
-        print("PAYLOAD MATCH")
         await edit_reaction(bot, payload)
 
 @bot.event
