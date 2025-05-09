@@ -78,4 +78,4 @@ async def edit_reaction(bot: PsomiBot, payload: RawReactionActionEvent) -> None:
             content=result.content
         )
 
-    await payload.member.send("Successfully edited the message!")
+    await payload.member.send(f"Successfully edited the message!\n\n{original_message.jump_url}")
