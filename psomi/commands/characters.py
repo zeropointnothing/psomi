@@ -1,6 +1,4 @@
 import re
-from typing import cast
-
 import discord
 from discord import Option
 from discord.ext import commands
@@ -8,7 +6,7 @@ from psomi.utils.bot import PsomiBot
 from psomi.utils.data import sort_by_page, User
 from psomi.errors import NotFoundError, DuplicateError, OutOfBoundsError
 from psomi.utils.views import CharacterListView
-
+from psomi.utils.autocomplete import chr_name_autocomplete, bracket_autocomplete
 
 class Characters(commands.Cog):
     def __init__(self, bot):
@@ -32,7 +30,12 @@ class Characters(commands.Cog):
             self,
             ctx: discord.ApplicationContext,
             name: Option(str, "The Character's name.", required=True),
-            brackets: Option(str, "The Character's brackets.", required=True),
+            brackets: Option(
+                str,
+                "The Character's brackets.",
+                required=True,
+                autocomplete=bracket_autocomplete
+            ),
             avatar_file: Option(discord.Attachment, "Upload a file as the avatar.", required=False),
             avatar_url: Option(str, "Use a URL as the avatar.", required=False)
     ):
@@ -72,7 +75,8 @@ class Characters(commands.Cog):
     async def unregister_command(
             self,
             ctx: discord.ApplicationContext,
-            name: Option(str, "The name of the Character to unregister.", required=True)):
+            name: Option(str, "The name of the Character to unregister.", required=True, autocomplete=chr_name_autocomplete)
+    ):
         try:
             user = self.bot.database.get_user(str(ctx.author.id))
         except NotFoundError:
@@ -92,7 +96,12 @@ class Characters(commands.Cog):
     async def avatar_command(
             self,
             ctx: discord.ApplicationContext,
-            name: Option(str, "The name of the Character you wish to update or view.", required=True),
+            name: Option(
+                str,
+                "The name of the Character you wish to update or view.",
+                required=True,
+                autocomplete=chr_name_autocomplete
+            ),
             avatar_file: Option(discord.Attachment, "Upload a file as the new avatar.", required=False),
             avatar_url: Option(str, "Use a URL as the new avatar.", required=False)
     ):
@@ -135,8 +144,18 @@ class Characters(commands.Cog):
     async def brackets_command(
             self,
             ctx: discord.ApplicationContext,
-            name: Option(str, "The name of the Character you wish to update.", required=True),
-            brackets: Option(str, "The Character's new brackets.", required=True)
+            name: Option(
+                str,
+                "The name of the Character you wish to update.",
+                required=True,
+                autocomplete=chr_name_autocomplete
+            ),
+            brackets: Option(
+                str,
+                "The Character's new brackets.",
+                required=True,
+                autocomplete=bracket_autocomplete
+            )
     ):
         if not re.match(".*text.*", brackets):
             await ctx.respond(f"The supplied brackets ({brackets}) were invalid. "
@@ -171,7 +190,12 @@ class Characters(commands.Cog):
     async def rename_command(
             self,
             ctx: discord.ApplicationContext,
-            old_name: Option(str, "The Character's old name (the one you want to change).", required=True),
+            old_name: Option(
+                str,
+                "The Character's old name (the one you want to change).",
+                required=True,
+                autocomplete=chr_name_autocomplete
+            ),
             new_name: Option(str, "The Character's new name (what you want to change it to)", required=True)
     ):
         try:
@@ -243,7 +267,12 @@ class Characters(commands.Cog):
     async def find_command(
             self,
             ctx: discord.ApplicationContext,
-            query: Option(str, "The character(s) to search for.", required=True)
+            query: Option(
+                str,
+                "The character(s) to search for.",
+                required=True,
+                autocomplete=chr_name_autocomplete
+            )
     ):
         try:
             user = self.bot.database.get_user(str(ctx.author.id))

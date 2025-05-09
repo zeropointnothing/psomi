@@ -32,7 +32,7 @@ def parse_message(user: User, message: str) -> list[dict[str, str | Character]]:
                 start = i
 
                 if character["suffix"] and line.endswith(character["suffix"]):
-                    final.append({"message": line, "character": character["character"]})
+                    final.append({"message": [line], "character": character["character"]})
                     continue
                 for x, seek_line in enumerate(lines[i:]):
                     if character["suffix"] and seek_line.endswith(character["suffix"]):

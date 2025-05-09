@@ -142,6 +142,20 @@ class User:
             for i, match in enumerate(matches) if match[1] >= 60
         ][:limit]
 
+    def get_proxygroup_by_search(self, query: str, limit: int = 10) -> list[tuple[ProxyGroup, int]]:
+        groups = self.proxy_groups
+
+        # noinspection PyTypeChecker
+        matches = process.extract(
+            query, [_.title for _ in groups],
+            scorer=fuzz.partial_ratio
+        )
+        matches.sort(key=lambda x: (fuzz.ratio(query, x[0]) + fuzz.partial_ratio(query, x[0])), reverse=True)
+        return [
+            (groups[match[2]], match[1])
+            for i, match in enumerate(matches) if match[1] >= 60
+        ][:limit]
+
 def db_get_user_row(cursor: sqlite3.Cursor, did: str) -> sqlite3.Row:
     """
     Get an SQLite Row containing user data.

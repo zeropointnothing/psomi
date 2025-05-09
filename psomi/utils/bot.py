@@ -1,3 +1,4 @@
+from cachetools import TTLCache
 import random
 import time
 from discord.ext.commands import Bot
@@ -8,6 +9,8 @@ class PsomiBot(Bot):
         self.__database: Data = Data(db_path)
 
         self.webhook_name = "omihook"
+        self.user_cache = TTLCache(100, 60)
+
         self.__STRESS_TEST_INTERVAL = 60
         self.__last_stress_test = 0
         self.__last_stress_test_result = None

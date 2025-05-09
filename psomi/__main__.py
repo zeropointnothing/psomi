@@ -52,6 +52,11 @@ async def on_message(message: discord.Message):
     psomi_webhook_token = psomi_webhook.get("token")
     psomi_webhook_url = f"https://discord.com/api/webhooks/{psomi_webhook_id}/{psomi_webhook_token}"
 
+    if not psomi_webhook_token:
+        await message.channel.send("Webhook error! Please contact the instance owner!")
+        raise AttributeError(f"Failed to retrieve token for webhook under the name '{bot.webhook_name}!'"
+                             f" Something is wrong!")
+
     parsed_message = parse_message(user, message.content)
 
     # do on_message based character updates
@@ -110,7 +115,7 @@ async def on_message(message: discord.Message):
                 username=character["character"].name,
                 avatar_url=character["character"].avatar if character["character"].avatar else discord.MISSING
             )
-            await asyncio.sleep(0.06)
+            await asyncio.sleep(0.2)
 
     if parsed_message:
         try:
