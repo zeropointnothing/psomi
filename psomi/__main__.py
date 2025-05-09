@@ -157,7 +157,7 @@ async def clear_webhooks():
     for user_id in bot.database.get_all_user_ids():
         user = bot.database.get_user(user_id)
 
-        bot.webhook_cache.purge_old_records(user, 3)
+        bot.webhook_cache.purge_old_records(user, 50)
     purge_end = time.time()-purge_start
     print(f"Finished Webhook purge! (took {round(purge_end, 3)} seconds)")
 
