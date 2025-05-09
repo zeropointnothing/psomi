@@ -326,6 +326,23 @@ class Data:
                 )
                 """)
 
+    def get_all_user_ids(self) -> list[str]:
+        """
+        Construct a list of all registered users (Discord) UUIDs.
+
+        In most cases, should only be used for testing purposes.
+        :return: A list of every registered user.
+        :rtype: list[str]
+        """
+        with sqlite3.connect(self.__data_path) as conn:
+            cursor = conn.cursor()
+
+            users = cursor.execute(
+                "SELECT did FROM users"
+            ).fetchall()
+
+            return [_[0] for _ in users]
+
     @enforce_annotations
     def get_user(self, uid: str) -> User:
         """
