@@ -2,14 +2,18 @@ from cachetools import TTLCache
 import random
 import time
 from discord.ext.commands import Bot
-from psomi.utils.data import Data
+from psomi.utils.data import Data, WebhookCache
+
 
 class PsomiBot(Bot):
-    def __init__(self, db_path: str, *args, **kwargs):
+    def __init__(self, db_path: str, wc_path: str, *args, **kwargs):
         self.__database: Data = Data(db_path)
+        self.__webhook_cache: WebhookCache = WebhookCache(wc_path)
 
         self.webhook_name = "omihook"
         self.user_cache = TTLCache(100, 60)
+
+        self.__WEBHOOK_CACHE_COUNT = 60
 
         self.__STRESS_TEST_INTERVAL = 60
         self.__last_stress_test = 0
@@ -62,3 +66,11 @@ class PsomiBot(Bot):
     @property
     def database(self):
         return self.__database
+
+    @property
+    def webhook_cache(self):
+        return self.__webhook_cache
+
+    @property
+    def webhook_cache_count(self):
+        return self.__WEBHOOK_CACHE_COUNT
