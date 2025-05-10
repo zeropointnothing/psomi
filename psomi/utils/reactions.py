@@ -55,7 +55,7 @@ async def edit_reaction(bot: PsomiBot, payload: RawReactionActionEvent) -> None:
     original_message = bot.get_channel(payload.channel_id)
     original_message = await original_message.fetch_message(payload.message_id)
     await payload.member.send("Editing the following message:\n"
-                              f"`{original_message.content}`\n"
+                              f"```{original_message.content}```\n"
                               "Please respond with the new content:")
 
     try:
