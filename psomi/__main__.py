@@ -1,14 +1,20 @@
+import datetime
 import json
+import time
 import discord
-import aiohttp, asyncio
+import aiohttp
+from discord import RawReactionActionEvent
+from discord.ext import tasks
+
 from psomi.commands import command_groups
 from psomi.utils.bot import PsomiBot
 from psomi.utils.parsing import parse_message
 from psomi.errors import NotFoundError
+from psomi.utils.reactions import edit_reaction
 
 intents = discord.Intents.default() #Defining intents
 intents.message_content = True # Adding the message_content intent so that the bot can read user messages
-bot = PsomiBot(command_prefix="p!", db_path="database.db", intents=intents)
+bot = PsomiBot(command_prefix="p!", db_path="database.db", wc_path="wccache.db", intents=intents)
 
 @bot.event
 async def on_ready():
@@ -23,6 +29,13 @@ async def on_ready():
             name=f"for new horizons... 🚧",
         )
     )
+
+    clear_webhooks.start()
+
+@bot.event
+async def on_raw_reaction_add(payload: RawReactionActionEvent):
+    if str(payload.emoji) == "📝":
+        await edit_reaction(bot, payload)
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -110,12 +123,15 @@ async def on_message(message: discord.Message):
                 except AttributeError:
                     pass
 
-            await character_webhook.send(
+            proxied_message = await character_webhook.send(
                 character_content,
                 username=character["character"].name,
-                avatar_url=character["character"].avatar if character["character"].avatar else discord.MISSING
+                avatar_url=character["character"].avatar if character["character"].avatar else discord.MISSING,
+                wait=True
             )
-            await asyncio.sleep(0.2)
+
+            bot.webhook_cache.add_user_webhook(user, str(proxied_message.id), character_webhook.url)
+            # await asyncio.sleep(0.2)
 
     if parsed_message:
         try:
@@ -124,6 +140,26 @@ async def on_message(message: discord.Message):
             pass
 
     await bot.process_commands(message)
+
+@tasks.loop(minutes=1)
+async def clear_webhooks():
+    now = datetime.datetime.now()
+
+    # when to run the purge (in military time)
+    run_at = datetime.time(0, 30)
+    run_at_day = ["Wednesday", "Sunday"]
+
+    if now.hour != run_at.hour or now.minute != run_at.minute or now.strftime("%A") not in run_at_day:
+        return
+
+    print("Running Webhook purge...")
+    purge_start = time.time()
+    for user_id in bot.database.get_all_user_ids():
+        user = bot.database.get_user(user_id)
+
+        bot.webhook_cache.purge_old_records(user, 50)
+    purge_end = time.time()-purge_start
+    print(f"Finished Webhook purge! (took {round(purge_end, 3)} seconds)")
 
 if __name__ == "__main__":
     print(command_groups)

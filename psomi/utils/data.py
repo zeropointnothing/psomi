@@ -824,3 +824,84 @@ class Data:
                 db_character["avatar"],
                 db_character["proxy_count"]
             )
+
+class WebhookCache:
+    def __init__(self):
+        pass
+
+    @enforce_annotations
+    def __init__(self, data_path: str):
+        """
+        Initializes the Webhook Cache.
+
+        If the cache does not exist, it will be created via `_prep`, with all required tables
+        automatically being created.
+        :param data_path: The location of the cache.
+        :type data_path: str
+        """
+        self.__data_path = data_path
+        self._prep()
+
+    def _prep(self):
+        if not os.path.exists(self.__data_path):
+            with sqlite3.connect(self.__data_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                CREATE TABLE messages (
+                    tid TEXT UNIQUE NOT NULL PRIMARY KEY,
+                    author_tid TEXT NOT NULL,
+                    message_did TEXT UNIQUE NOT NULL,
+                    webhook_url TEXT NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+
+    def get_user_webhooks(self, user: User):
+        with sqlite3.connect(self.__data_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            db_messages = cursor.execute(
+                """
+                SELECT * FROM messages WHERE author_tid=?
+                """,
+                (user.tid,)
+            )
+
+            return [
+                {
+                    "url": _["webhook_url"],
+                    "message_id": _["message_did"],
+                    "author_id": _["author_tid"],
+                    "timestamp": _["timestamp"]
+                } for _ in db_messages
+            ]
+
+    @enforce_annotations
+    def add_user_webhook(self, user: User, message_id: str, webhook_url: str):
+        with sqlite3.connect(self.__data_path) as conn:
+            cursor = conn.cursor()
+
+            message_tid = str(uuid.uuid4())
+            cursor.execute(
+                "INSERT INTO messages (tid, author_tid, message_did, webhook_url) VALUES "
+                "(?, ?, ?, ?)",
+                (message_tid, user.tid, message_id, webhook_url)
+            )
+
+    @enforce_annotations
+    def purge_old_records(self, user: User, limit: int):
+        with sqlite3.connect(self.__data_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                f"""
+                DELETE FROM messages
+                WHERE tid IN (
+                    SELECT tid FROM messages
+                    WHERE author_tid='{user.tid}'
+                    ORDER BY timestamp ASC
+                    LIMIT (SELECT COUNT(*) FROM messages WHERE author_tid='{user.tid}')-{limit}
+                )
+                """
+            )
