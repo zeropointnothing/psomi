@@ -11,6 +11,12 @@ Discord has plenty of Role-Playing focused proxy bots, but PSOMI.v2 aims to be m
 
 PSOMI is being rewritten from the ground up, making v2 better in every way! PSOMI.v2 can parse, respond, and edit faster than ever before, all powered by wonderful SQL!
 
+### Modern and Sleek
+
+Unlike v1 and most proxy bots, which rely specifically on "prefix commands", PSOMI.v2 has been rewritten with modern Discord features such as Slash Commands, embeds, and buttons!
+
+Additionally, supported commands have access to nifty features such as Auto-complete and predetermined options that'll make using PSOMI that much easier!
+
 ### Open-Source
 
 PSOMI.v2 will always keep its code open, making it easier to find and squash bugs, add features, and host your own instance!
@@ -32,9 +38,9 @@ PSOMI.v2 isn't done yet, and will continue to grow when it is! View the [Roadmap
 
 ## Why (not) PSOMI.v2?
 
-PSOMI.v2 is currently in a _very_ early state, meaning things may be broken, non-functional, or buggy! While bug-reports are absolutely appreciated, it isn't recommended you use PSOMI.v2 for anything big, lest it gets confused and you lose your hard work.
+PSOMI.v2 is still in a very early state. This means bugs or breaking changes could happen at any time!
 
-However, we're almost there! Commands are being worked on, and the rewrite is about 40% complete, with progress being made every week! Stay tuned, because PSOMI.v2 has so much to show!
+The rewrite may be practically finished, but PSOMI.v2's journey is not!
 
 ## Hosting Your Own Instance
 
