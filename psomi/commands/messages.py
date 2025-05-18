@@ -58,7 +58,7 @@ class Messages(commands.Cog):
             return
 
         # likely won't happen, but just in case!
-        if proxied_message["author_id"] != user.tid:
+        if proxied_message["author_id"] != user.uid:
             await ctx.respond("You did not send this message!", ephemeral=True)
             return
 

@@ -849,7 +849,7 @@ class WebhookCache:
                 cursor.execute("""
                 CREATE TABLE messages (
                     tid TEXT UNIQUE NOT NULL PRIMARY KEY,
-                    author_tid TEXT NOT NULL,
+                    author_did TEXT NOT NULL,
                     message_did TEXT UNIQUE NOT NULL,
                     webhook_url TEXT NOT NULL,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -863,19 +863,32 @@ class WebhookCache:
 
             db_messages = cursor.execute(
                 """
-                SELECT * FROM messages WHERE author_tid=?
+                SELECT * FROM messages WHERE author_did=?
                 """,
-                (user.tid,)
+                (user.uid,)
             )
 
             return [
                 {
                     "url": _["webhook_url"],
                     "message_id": _["message_did"],
-                    "author_id": _["author_tid"],
+                    "author_id": _["author_did"],
                     "timestamp": _["timestamp"]
                 } for _ in db_messages
             ]
+
+    def get_webhook_author_id(self, message_id: str):
+        with sqlite3.connect(self.__data_path) as conn:
+            cursor = conn.cursor()
+
+            db_author = cursor.execute(
+                """
+                SELECT author_did FROM messages WHERE message_did=?
+                """,
+                (message_id,)
+            ).fetchone()
+
+            return db_author[0]
 
     @enforce_annotations
     def add_user_webhook(self, user: User, message_id: str, webhook_url: str):
@@ -884,9 +897,9 @@ class WebhookCache:
 
             message_tid = str(uuid.uuid4())
             cursor.execute(
-                "INSERT INTO messages (tid, author_tid, message_did, webhook_url) VALUES "
+                "INSERT INTO messages (tid, author_did, message_did, webhook_url) VALUES "
                 "(?, ?, ?, ?)",
-                (message_tid, user.tid, message_id, webhook_url)
+                (message_tid, user.uid, message_id, webhook_url)
             )
 
     @enforce_annotations
@@ -899,9 +912,9 @@ class WebhookCache:
                 DELETE FROM messages
                 WHERE tid IN (
                     SELECT tid FROM messages
-                    WHERE author_tid='{user.tid}'
+                    WHERE author_did='{user.uid}'
                     ORDER BY timestamp ASC
-                    LIMIT (SELECT COUNT(*) FROM messages WHERE author_tid='{user.tid}')-{limit}
+                    LIMIT (SELECT COUNT(*) FROM messages WHERE author_did='{user.uid}')-{limit}
                 )
                 """
             )

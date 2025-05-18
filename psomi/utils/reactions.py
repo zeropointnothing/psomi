@@ -49,7 +49,7 @@ async def edit_reaction(bot: PsomiBot, payload: RawReactionActionEvent) -> None:
         return
 
     # likely won't happen, but just in case!
-    if proxied_message["author_id"] != user.tid:
+    if proxied_message["author_id"] != user.uid:
         return
 
     original_message = bot.get_channel(payload.channel_id)

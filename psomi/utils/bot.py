@@ -10,7 +10,7 @@ class PsomiBot(Bot):
         self.__database: Data = Data(db_path)
         self.__webhook_cache: WebhookCache = WebhookCache(wc_path)
 
-        self.webhook_name = "omihook"
+        self.webhook_name = "omihook_testing"
         self.user_cache = TTLCache(100, 60)
 
         self.__WEBHOOK_CACHE_COUNT = 60

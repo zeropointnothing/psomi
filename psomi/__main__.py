@@ -84,7 +84,7 @@ async def on_message(message: discord.Message):
                 parsed_message[i] = {"character": updated_character, "message": _["message"]}
 
 
-    async with aiohttp.ClientSession() as session:
+    async with (aiohttp.ClientSession() as session):
         for i, character in enumerate(parsed_message):
             character_webhook = discord.Webhook.from_url(psomi_webhook_url, session=session)
             character_content: str = '\n'.join(character["message"])
@@ -99,7 +99,15 @@ async def on_message(message: discord.Message):
             if i == 0 and message.reference:
                 try:
                     referenced_message = message.reference.cached_message
-                    replied_user = referenced_message.author
+
+                    webhook_author = bot.webhook_cache.get_webhook_author_id(str(referenced_message.id))
+                    if webhook_author:
+                        # use guild.fetch_member to get around stupid caching issues
+                        guild = bot.get_guild(message.guild.id)
+                        replied_user = await guild.fetch_member(int(webhook_author))
+                    else:
+                        replied_user = referenced_message.author
+
                     referenced_content = referenced_message.content
                     referenced_content = referenced_content.split("\n")
 
@@ -120,7 +128,8 @@ async def on_message(message: discord.Message):
                         f"> {replied_content}\n{replied_user.mention} - [Jump](<https://discord.com/channels/@me/{channel_id}/{message_id}>)\n"
                         + character_content
                     )
-                except AttributeError:
+                except AttributeError as e:
+                    raise e
                     pass
 
             proxied_message = await character_webhook.send(
