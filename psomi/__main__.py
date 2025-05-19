@@ -100,7 +100,11 @@ async def on_message(message: discord.Message):
                 try:
                     referenced_message = message.reference.cached_message
 
-                    webhook_author = bot.webhook_cache.get_webhook_author_id(str(referenced_message.id))
+                    try:
+                        webhook_author = bot.webhook_cache.get_webhook_author_id(str(referenced_message.id))
+                    except NotFoundError:
+                        webhook_author = None
+
                     if webhook_author:
                         # use guild.fetch_member to get around stupid caching issues
                         guild = bot.get_guild(message.guild.id)
@@ -128,8 +132,7 @@ async def on_message(message: discord.Message):
                         f"> {replied_content}\n{replied_user.mention} - [Jump](<https://discord.com/channels/@me/{channel_id}/{message_id}>)\n"
                         + character_content
                     )
-                except AttributeError as e:
-                    raise e
+                except AttributeError:
                     pass
 
             proxied_message = await character_webhook.send(

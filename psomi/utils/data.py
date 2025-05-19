@@ -888,7 +888,10 @@ class WebhookCache:
                 (message_id,)
             ).fetchone()
 
-            return db_author[0]
+            try:
+                return db_author[0]
+            except TypeError as e:
+                raise NotFoundError(f"Could not find a cache entry for message of ID '{message_id}'!") from e
 
     @enforce_annotations
     def add_user_webhook(self, user: User, message_id: str, webhook_url: str):
